@@ -1,2 +1,1 @@
-# Isid
-The isid programming language
+# IDO
