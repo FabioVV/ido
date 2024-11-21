@@ -10,9 +10,10 @@ typedef struct {
 } Scanner;
 
 Scanner initScanner(const char* source);
+void freeScanner(Scanner* sc);
 
-Token scanToken();
-Token errorToken(Scanner sc, const char* message);
-Token makeToken(Scanner sc, TokenType type);
+Token scanToken(Scanner* sc);
+Token errorToken(Scanner* sc, const char* message);
+Token makeToken(Scanner* sc, TokenType type);
 
 #endif
