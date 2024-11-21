@@ -5,13 +5,11 @@
 #include <string.h>
 #include "lexer.h"
 #include "common.h"
-
+#include "memory.h"
 
 Scanner* initScanner(const char* source){
     Scanner* sc = malloc(sizeof(Scanner));
-    if(sc == NULL){
-        return NULL;
-    }
+    if(sc == NULL) exit(1);
     sc->start = source;
     sc->current = source;
     sc->line = 1;
@@ -20,7 +18,7 @@ Scanner* initScanner(const char* source){
 }
 
 void freeScanner(Scanner* sc){
-    free(sc);
+    FREE(Scanner, sc);
 }
 
 Token errorToken(Scanner* sc, const char* message){
