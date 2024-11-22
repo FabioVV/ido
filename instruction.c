@@ -9,6 +9,7 @@ void initProgram(Program* prog){
     prog->count = 0;
     prog->lines = NULL;
     prog->code = NULL;
+    initValueArray(&prog->constants);
 }
 
 void writeToProgram(Program* prog, uint8_t bytecode, int line){
@@ -28,8 +29,13 @@ void writeToProgram(Program* prog, uint8_t bytecode, int line){
 void freeProgram(Program* prog){
     FREE_ARRAY(uint8_t, prog->code, prog->capacity);
     FREE_ARRAY(int, prog->lines, prog->capacity);
-    
+    freeValueArray(&prog->constants);
     initProgram(prog);
+}
+
+int addConstant(Program* prog, Value value){
+    writeValueArray(&prog->constants, value);
+    return prog->constants.count - 1;
 }
 
 

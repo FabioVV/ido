@@ -15,7 +15,7 @@ void repl(){
         }
 
         if(line[0] != '\n' && line[0] != '\0'){
-            
+
         }
         lc++;
     }
@@ -23,11 +23,6 @@ void repl(){
 
 int main(int argc, const char* argv[]){
 
-    TVM* vm = malloc(sizeof(TVM));
-    initVM(vm);
-    writeToProgram(&vm->program, 0, 1);
-    runVM(vm);
 
-    freeVM(vm);
     return 0;
 }
