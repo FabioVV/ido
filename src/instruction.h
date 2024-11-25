@@ -3,6 +3,7 @@
 
 #include "common.h"
 #include "value.h"
+#include "idoconf.h"
 
 typedef enum {
     OP_LOAD, // Loads a value into a register 
@@ -18,8 +19,16 @@ typedef enum {
     OP_IGL, // Ilegal op found
 } Opcode;
 
+#if IS32INT
+    typedef unsigned int ido_uint32;
+#else
+    typedef unsigned long ido_uint32;
+#endif
+
+typedef ido_uint32 Instruction;
+
 typedef struct {
-    uint8_t* code;
+    Instruction* code;
     ValueArray constants;
     int capacity;
     int count;
