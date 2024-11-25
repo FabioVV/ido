@@ -34,10 +34,19 @@ Token makeToken(Scanner* sc, TokenType type){
     Token token;
     token.type = type;
     token.start = sc->start;
-    token.length = (int)strlen(sc->current - sc->start);
+    token.length = (int)(sc->current - sc->start);
     token.line = sc->line;
     return token;
 }
+
+static bool isDigit(char c){
+    return c >= '0' && c <= '9';
+}
+
+static bool isAlpha(char c){
+    return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '_';
+}
+
 
 static bool isAtEnd(Scanner* sc){
     return *sc->current == '\0';
@@ -115,14 +124,6 @@ static Token numeric(Scanner* sc){
     return makeToken(sc, isFractional ? T_FLOAT : T_INT);
 }
 
-static bool isDigit(char c){
-    return c >= '0' && c <= '9';
-}
-
-static bool isAlpha(char c){
-    return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '_';
-}
-
 static TokenType checkKeyword(Scanner* sc, int start, int length, const char* rest, TokenType type){
     if(sc->current - sc->start == start + length && memcmp(sc->start + start, rest , length) == 0){
         return type;
@@ -141,8 +142,8 @@ static TokenType identifierType(Scanner* sc){
         if(sc->current - sc->start > 1){
             switch (*(sc->start + 1))
             {
-            case 'a': return checkKeyword(sc, 2, 3, 'lse', T_FALSE);
-            case 'o': return checkKeyword(sc, 2, 1, 'r', T_FOR);
+            case 'a': return checkKeyword(sc, 2, 3, "lse", T_FALSE);
+            case 'o': return checkKeyword(sc, 2, 1, "r", T_FOR);
             case 'n': return T_FN;
             } 
         }  
@@ -155,7 +156,7 @@ static TokenType identifierType(Scanner* sc){
         if(sc->current - sc->start > 1){
             switch (*(sc->start + 1))
             {
-            case 'r': return checkKeyword(sc, 2, 2, 'ue', T_TRUE);
+            case 'r': return checkKeyword(sc, 2, 2, "ue", T_TRUE);
             } 
         }  
         break;

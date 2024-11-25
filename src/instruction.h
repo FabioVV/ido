@@ -5,16 +5,17 @@
 #include "value.h"
 
 typedef enum {
-    OP_HLT, // Halts the Tania vm
-    OP_IGL, // Ilegal op found
     OP_LOAD, // Loads a value into a register 
+    OP_CONSTANT,
 
     OP_ADD,
     OP_SUB,
     OP_MUL,
     OP_DIV,
 
-    OP_CONSTANT,
+
+    OP_HLT, // Halts the Tania vm
+    OP_IGL, // Ilegal op found
 } Opcode;
 
 typedef struct {

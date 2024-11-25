@@ -15,14 +15,14 @@ void repl(){
         }
 
         if(line[0] != '\n' && line[0] != '\0'){
-
+            printf("%s", line);
         }
+        
         lc++;
     }
 }
 
 int main(int argc, const char* argv[]){
-
-
+    repl();
     return 0;
 }

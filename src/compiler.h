@@ -3,6 +3,7 @@
 
 #include "tvm.h"
 #include "token.h"
+#include "common.h"
 
 typedef struct {
     Token current;

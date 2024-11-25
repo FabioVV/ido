@@ -1,7 +1,6 @@
 #ifndef C_COMPILER
 #define C_COMPILER
 
-#include <common.h>
 #include <stdio.h>
 #include "tvm.h"
 #include "lexer.h"
@@ -16,6 +15,7 @@ Parser* initParser(){
 static void errorAt(Parser* p, Token* token, const char* message){
     if(p->panicMode) return;
     p->panicMode = true;
+
     fprintf(stderr, "[line %d] error", token->line);
 
     if(token->type == T_EOF){
@@ -27,15 +27,16 @@ static void errorAt(Parser* p, Token* token, const char* message){
     }
 
     fprintf(stderr, ": %s\n", message);
+    
     p->hadError = true;
 }
 
 static void error(Parser* p, const char* message){
-    erroAt(p, p->previous, message);
+    errorAt(p, &p->previous, message);
 }
 
 static void errorAtCurrent(Parser* p, const char* message){
-    erroAt(p, p->current, message);
+    errorAt(p, &p->current, message);
 }
 
 static void advance(Parser* p, Scanner* sc){

@@ -21,7 +21,7 @@ typedef struct{
 
 void initVM(TVM* tvm);
 void freeVM(TVM* tvm);
-InterpretResult interpret(TVM* tvm);
+InterpretResult interpret(TVM* tvm, const char* source);
 
 
 #endif 
