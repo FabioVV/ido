@@ -6,10 +6,28 @@
 #include "lexer.h"
 #include "compiler.h"
 
+Program* compilingProgram;
+
 Parser* initParser(){
     Parser* p = malloc(sizeof(Parser));
     if(p == NULL) exit(1);
     return p;
+}
+
+static Program* currentProgram(){
+    return compilingProgram;
+}
+
+static void emitReturn(){
+    printf("END OF COMPILATION");
+}
+
+static void endCompilation(){
+    emitReturn();
+}
+
+static void expression(){
+    
 }
 
 static void errorAt(Parser* p, Token* token, const char* message){
@@ -60,13 +78,16 @@ static void consume(Parser* p, Scanner* sc, TokenType type, const char* message)
 bool compile(const char* source, Program* program){
     Scanner* sc = initScanner(source);
     Parser* p = initParser();
+    compilingProgram = program;
+
     p->panicMode = false;
     p->hadError = false;
-
 
     advance(p, sc);
     expression();
     consume(p, sc, T_EOF, "expect end of expression");
+
+    endCompilation();
     return !p->hadError;
 }
 

@@ -16,7 +16,7 @@ typedef enum {
 
 
     OP_HLT, // Halts the Tania vm
-    OP_IGL, // Ilegal op found
+    OP_IGL, // ilegal op found
 } Opcode;
 
 #if IS32INT
