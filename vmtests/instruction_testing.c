@@ -58,6 +58,9 @@ int main(){
 
     #define ENCODE_ADD(dstr, ra, rb) \
         ((OP_ADD << 26) | ((dstr & 0xFF) << 18) | ((ra & 0xFF) << 10) | (rb))
+    
+    #define ENCODE_SUB(dstr, ra, rb) \
+        ((OP_SUB << 26) | ((dstr & 0xFF) << 18) | ((ra & 0xFF) << 10) | (rb))
 
     #define GET_REG_DSTR(inst) \
         ((inst >> 18) & 0xFF)
@@ -72,7 +75,11 @@ int main(){
     Instruction f2 = ENCODE_ILOAD(3, 25);
     Instruction f3 = ENCODE_ADD(1, 2, 3);
 
-    Instruction instructions[] = {f1, f2, f3};
+    Instruction f4 = ENCODE_ILOAD(2, 3);
+    Instruction f5 = ENCODE_ILOAD(3, 5);
+    Instruction f6 = ENCODE_SUB(1, 2, 3);
+
+    Instruction instructions[] = {f1, f2, f3, f4, f5, f6};
 
     printf("Bytecode:\n");
     for (int i = 0; i < 3; i++) {
@@ -80,7 +87,7 @@ int main(){
         printf("Instruction %d: 0x%08X\n", i, ins);
     }
 
-    for(int i = 0; i < 3; i++){
+    for(int i = 0; i < 6; i++){
         Instruction inst = instructions[i];
         opcode op = GET_OPCODE(inst);
 
@@ -105,6 +112,19 @@ int main(){
             registers[dstr] = result;
 
             printf("%i: ADD R%i R%i R%i -> (R1 = %i)\n", i, dstr, ra, rb, result);
+
+            break;
+        }
+        case OP_SUB:{
+
+            uint8_t dstr = GET_REG_DSTR(inst);
+            uint8_t ra = GET_REG_A(inst);
+            uint8_t rb = GET_REG_B(inst);
+            ido_uint32 result = registers[ra] - registers[rb];
+
+            registers[dstr] = result;
+
+            printf("%i: SUB R%i R%i R%i -> (R1 = %i)\n", i, dstr, ra, rb, result);
 
             break;
         }
