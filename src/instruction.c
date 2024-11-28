@@ -12,11 +12,11 @@ void initProgram(Program* prog){
     initValueArray(&prog->constants);
 }
 
-void writeToProgram(Program* prog, uint8_t bytecode, int line){
+void writeToProgram(Program* prog, ido_uint32 bytecode, int line){
     if(prog->capacity < prog->count + 1){
         int oldCap = prog->capacity;
         prog->capacity = GROW_CAPACITY(oldCap);
-        prog->code = GROW_ARRAY(uint8_t, prog->code, oldCap, prog->capacity);
+        prog->code = GROW_ARRAY(ido_uint32, prog->code, oldCap, prog->capacity);
         prog->lines = GROW_ARRAY(int, prog->lines, oldCap, prog->capacity);
     }
 
@@ -27,7 +27,7 @@ void writeToProgram(Program* prog, uint8_t bytecode, int line){
 }
 
 void freeProgram(Program* prog){
-    FREE_ARRAY(uint8_t, prog->code, prog->capacity);
+    FREE_ARRAY(ido_uint32, prog->code, prog->capacity);
     FREE_ARRAY(int, prog->lines, prog->capacity);
     freeValueArray(&prog->constants);
     initProgram(prog);
