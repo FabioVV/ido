@@ -5,6 +5,7 @@
 #include "common.h"
 #include "value.h"
 #include "memory.h"
+#include "value.h"
 
 void initValueArray(ValueArray* array){
     array->values = NULL;
@@ -28,7 +29,20 @@ void freeValueArray(ValueArray* array){
 }
 
 void printValue(Value value){
-    printf("%g", value);
+    switch (value.type)
+    {
+    case VAL_INUMBER:{
+        printf("%lu", AS_INUMBER(value));
+        break;
+
+    }
+    case VAL_DNUMBER:{
+        printf("%g", AS_DNUMBER(value));
+        break;
+    }
+        
+    default: return;
+    }
 }
 
 #endif 

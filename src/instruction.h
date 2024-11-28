@@ -25,6 +25,12 @@ typedef enum {
     typedef unsigned long ido_uint32;
 #endif
 
+// Instructions handling
+#define ENC_CONSTANT(constantIndex) (OP_CONSTANT << 26) | (constantIndex & 0x03FFFFFF)
+
+// Instructions handling
+
+
 typedef ido_uint32 Instruction;
 
 typedef struct {

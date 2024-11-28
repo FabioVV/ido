@@ -5,8 +5,17 @@
 #include "tvm.h"
 #include "lexer.h"
 #include "compiler.h"
+#include "token.h"
+#include "value.h"
+#include "instruction.h"
+
+static ParseRule* getRule(TokenType t);
+static void parsePrecedence(Parser *p, Scanner *sc, Precedence prec);
+static void expression(Parser *p, Scanner *sc);
+
 
 Program* compilingProgram;
+
 
 Parser* initParser(){
     Parser* p = malloc(sizeof(Parser));
@@ -26,8 +35,102 @@ static void endCompilation(){
     emitReturn();
 }
 
-static void expression(){
+// static void emitInstruction(Parser *p, Scanner *sc, ido_uint32 inst, Opcode op){ // TODO: REVISIT THIS
+//     switch (op)
+//     {
+//     case OP_CONSTANT: {
+//         writeToProgram(currentChunk(), ENC_CONSTANT(inst), p->previous.line);
+//         break;
+//     }
+//     default: break;
+//     }
+// }
+
+static void emitConstant(Parser *p, Scanner *sc, double val){
+    writeToProgram(currentChunk(), ENC_CONSTANT(makeConstant(val)), p->previous.line);
+}
+
+static void parsePrecedence(Parser *p, Scanner *sc, Precedence prec){
+    advance(p, sc);
+    ParseFn prefixRule = getRule(p->previous.type)->prefix;
+
+    if(prefixRule == NULL){
+        error(p, "expect expression");
+        return;
+    }
+
+    prefixRule(p, sc);
+
+    while(prec <= getRule(p->current.type)->precedence){
+        advance(p, sc);
+        ParseFn infixRule = getRule(p->previous.type)->infix;
+        infixRule(p, sc);
+    }
+}
+
+static ido_uint32 createConstant(Parser* p, Value v){
+    ido_uint32 constant = addConstant(currentProgram(), v);
+    if(constant > UINT32_MAX){
+        error(p, "too many constants in one program");
+        return 0;
+    }
+
+    return constant;
+}
+
+// static void emitConstant(Parser *p, Scanner *scValue v){
+//     emitInstruction()
+// }
+
+static void number(Parser *p, Scanner *sc){
+    double value = strtod(p->previous.start, NULL);
+    emitConstant(p, sc, value);
+}
+
+static void unary(Parser *p, Scanner *sc){
+    TokenType opType = p->previous.type;
+    parsePrecedence(p, sc, PREC_UNARY);
+
+    switch (opType)
+    {
+    case T_MINUS: 
+        // emit bytecode for unary negation here
+        break;
     
+    default: return;
+    }
+}
+
+static void expression(Parser *p, Scanner *sc){
+    parsePrecedence(p, sc, PREC_ASSIGNMENT);
+}
+
+static void grouping(Parser *p, Scanner *sc){
+    expression(p, sc);
+    consume(p, sc, T_RIGHT_PAREN, "expect ')' after expression");
+}
+
+static void binary(Parser *p, Scanner *sc){
+    TokenType opType = p->previous.type;
+    ParseRule* rule = getRule(opType);
+    parsePrecedence(p, sc, (Precedence)rule->precedence+1);
+
+    switch (opType)
+    {
+    case T_PLUS:
+        // emity bytecode for add
+        break;
+    case T_MINUS:
+        // emity bytecode for sub
+        break;
+    case T_STAR:
+        // emity bytecode for mult
+        break;
+    case T_SLASH:
+        // emity bytecode for div
+        break;
+    default: return;
+    }
 }
 
 static void errorAt(Parser* p, Token* token, const char* message){
@@ -75,6 +178,51 @@ static void consume(Parser* p, Scanner* sc, TokenType type, const char* message)
     errorAtCurrent(p, message);
 }
 
+ParseRule rules[] = {
+  [T_LEFT_PAREN]    = {grouping, NULL,   PREC_NONE},
+  [T_RIGHT_PAREN]   = {NULL,     NULL,   PREC_NONE},
+  [T_LEFT_BRACE]    = {NULL,     NULL,   PREC_NONE}, 
+  [T_RIGHT_BRACE]   = {NULL,     NULL,   PREC_NONE},
+  [T_COMMA]         = {NULL,     NULL,   PREC_NONE},
+  [T_DOT]           = {NULL,     NULL,   PREC_NONE},
+  [T_MINUS]         = {unary,    binary, PREC_TERM},
+  [T_PLUS]          = {NULL,     binary, PREC_TERM},
+  [T_SEMICOLON]     = {NULL,     NULL,   PREC_NONE},
+  [T_SLASH]         = {NULL,     binary, PREC_FACTOR},
+  [T_STAR]          = {NULL,     binary, PREC_FACTOR},
+  [T_BANG]          = {NULL,     NULL,   PREC_NONE},
+  [T_BANG_EQUAL]    = {NULL,     NULL,   PREC_NONE},
+  [T_EQUAL]         = {NULL,     NULL,   PREC_NONE},
+  [T_EQUAL_EQUAL]   = {NULL,     NULL,   PREC_NONE},
+  [T_GREATER]       = {NULL,     NULL,   PREC_NONE},
+  [T_GREATER_EQUAL] = {NULL,     NULL,   PREC_NONE},
+  [T_LESS]          = {NULL,     NULL,   PREC_NONE},
+  [T_LESS_EQUAL]    = {NULL,     NULL,   PREC_NONE},
+  [T_IDEN]          = {NULL,     NULL,   PREC_NONE},
+  [T_STRING]        = {NULL,     NULL,   PREC_NONE},
+  [T_FLOAT]         = {number,   NULL,   PREC_NONE},
+  [T_INT]           = {number,   NULL,   PREC_NONE},
+  [T_AND]           = {NULL,     NULL,   PREC_NONE},
+  [T_ELSE]          = {NULL,     NULL,   PREC_NONE},
+  [T_FALSE]         = {NULL,     NULL,   PREC_NONE},
+  [T_FOR]           = {NULL,     NULL,   PREC_NONE},
+  [T_FN]            = {NULL,     NULL,   PREC_NONE},
+  [T_IF]            = {NULL,     NULL,   PREC_NONE},
+  [T_NIL]           = {NULL,     NULL,   PREC_NONE},
+  [T_OR]            = {NULL,     NULL,   PREC_NONE},
+  [T_PRINT]         = {NULL,     NULL,   PREC_NONE},
+  [T_RETURN]        = {NULL,     NULL,   PREC_NONE},
+  [T_TRUE]          = {NULL,     NULL,   PREC_NONE},
+  [T_VAR]           = {NULL,     NULL,   PREC_NONE},
+  [T_WHILE]         = {NULL,     NULL,   PREC_NONE},
+  [T_ERROR]         = {NULL,     NULL,   PREC_NONE},
+  [T_EOF]           = {NULL,     NULL,   PREC_NONE},
+};
+
+static ParseRule* getRule(TokenType t){
+    return &rules[t];
+}
+
 bool compile(const char* source, Program* program){
     Scanner* sc = initScanner(source);
     Parser* p = initParser();
@@ -84,7 +232,7 @@ bool compile(const char* source, Program* program){
     p->hadError = false;
 
     advance(p, sc);
-    expression();
+    expression(p,sc);
     consume(p, sc, T_EOF, "expect end of expression");
 
     endCompilation();
