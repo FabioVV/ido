@@ -13,9 +13,7 @@ static ParseRule* getRule(TokenType t);
 static void parsePrecedence(Parser *p, Scanner *sc, Precedence prec);
 static void expression(Parser *p, Scanner *sc);
 
-
 Program* compilingProgram;
-
 
 Parser* initParser(){
     Parser* p = malloc(sizeof(Parser));
@@ -54,12 +52,12 @@ static void errorAtCurrent(Parser* p, const char* message){
     errorAt(p, &p->current, message);
 }
 
-static void emitReturn(){
-    printf("END OF COMPILATION");
+static void emitReturn(Parser* p){
+    writeToProgram(currentProgram(), ENC_RETURN(), p->previous.line);
 }
 
-static void endCompilation(){
-    emitReturn();
+static void endCompilation(Parser* p){
+    emitReturn(p);
 }
 
 static void advance(Parser* p, Scanner* sc){
@@ -89,17 +87,6 @@ static ido_uint32 createConstant(Parser* p, Value v){
 
     return constantIndex;
 }
-
-// static void emitInstruction(Parser *p, Scanner *sc, ido_uint32 inst, Opcode op){ // TODO: REVISIT THIS
-//     switch (op)
-//     {
-//     case OP_CONSTANT: {
-//         writeToProgram(currentChunk(), ENC_CONSTANT(inst), p->previous.line);
-//         break;
-//     }
-//     default: break;
-//     }
-// }
 
 static void emitConstant(Parser *p, Value v){
     writeToProgram(currentProgram(), ENC_CONSTANT(createConstant(p, v)), p->previous.line);
@@ -232,10 +219,8 @@ bool compile(const char* source, Program* program){
     expression(p, sc);
     consume(p, sc, T_EOF, "expect end of expression");
 
-    endCompilation();
+    endCompilation(p);
     return !p->hadError;
 }
 
 #endif
-
-

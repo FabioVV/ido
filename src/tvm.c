@@ -18,12 +18,6 @@ void freeVM(TVM* tvm){
 
 }
 
-static uint16_t next_16_bits(TVM* tvm){
-    tvm->pc += 2;
-    uint16_t val = (uint16_t)(tvm->pc[-2] << 8 | tvm->pc[-1]);
-    return val;
-}
-
 static InterpretResult runVM(TVM* tvm){
 
     #define ibreak break
@@ -31,9 +25,9 @@ static InterpretResult runVM(TVM* tvm){
     #define GET_CONSTANT(index) (tvm->program->constants.values[index])
 
     for(;;){
-        if(tvm->pc > (tvm->program->code)){
-            return INTERPRET_OK;
-        }
+        // if(tvm->pc > (tvm->program->code)){
+        //     return INTERPRET_OK;
+        // }
 
         register Instruction i = NEXT_INSTRUCTION(tvm);
 
@@ -43,6 +37,10 @@ static InterpretResult runVM(TVM* tvm){
             Value v = GET_CONSTANT(DEC_CONSTANT(i));
             printValue(v);
             printf("\n");
+            ibreak;
+        }
+        case OP_RETURN:{
+            return INTERPRET_OK;
             ibreak;
         }
         case OP_HLT:

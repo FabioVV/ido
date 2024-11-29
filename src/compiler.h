@@ -29,7 +29,6 @@ typedef struct {
 
 typedef void (*ParseFn)(Parser *p, Scanner *sc);
 
-
 typedef struct {
     ParseFn prefix;
     ParseFn infix; 

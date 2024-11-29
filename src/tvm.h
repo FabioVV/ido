@@ -3,7 +3,7 @@
 
 #include "instruction.h"
 
-#define REGISTERS_NUM 32
+#define REGISTERS_NUM 256
 
 typedef enum {
   INTERPRET_OK,

@@ -28,8 +28,11 @@ typedef enum {
 // Instructions handling
 #define GET_OPCODE(i)               ((i >> 26) & 0x3F)
 #define NEXT_INSTRUCTION(tvm)       (*tvm->pc++)
+
 #define ENC_CONSTANT(constantIndex) (OP_CONSTANT << 26) | (constantIndex & 0x1FFFFFF)
 #define DEC_CONSTANT(i)             (i & 0x1FFFFFF)
+
+#define ENC_RETURN()                (OP_RETURN << 26) & 0xFC000000
 
 // Instructions handling
 
