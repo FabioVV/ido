@@ -2,7 +2,7 @@
 #include "tvm.h"
 #include "instruction.h"
 
-void repl(){
+void repl(TVM* tvm){
     char line[1024];
     int lc = 1;
 
@@ -15,7 +15,7 @@ void repl(){
         }
 
         if(line[0] != '\n' && line[0] != '\0'){
-            printf("%s", line);
+            interpret(tvm, line);
         }
         
         lc++;
@@ -23,6 +23,10 @@ void repl(){
 }
 
 int main(int argc, const char* argv[]){
-    repl();
+    TVM tvm;
+    initVM(&tvm);
+
+    repl(&tvm);
+    
     return 0;
 }

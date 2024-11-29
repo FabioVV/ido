@@ -3,7 +3,7 @@
 
 #include "instruction.h"
 
-#define REGISTERS_NUM 32 // Number of registers the Tania vm has
+#define REGISTERS_NUM 32
 
 typedef enum {
   INTERPRET_OK,
@@ -13,10 +13,9 @@ typedef enum {
 } InterpretResult;
 
 typedef struct{
-    uint32_t registers[REGISTERS_NUM];
-    Program* program; 
-    uint8_t* pc;
-    int32_t remainder;
+  ido_uint32 registers[REGISTERS_NUM];
+  Program* program; 
+  ido_uint32* pc;
 } TVM;
 
 void initVM(TVM* tvm);

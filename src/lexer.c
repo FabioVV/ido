@@ -180,6 +180,7 @@ Token scanToken(Scanner* sc){
     if(isAtEnd(sc)) return makeToken(sc, T_EOF);
 
     char c = advance(sc);
+
     if(isAlpha(c)) return identifier(sc); // Keywords, variables, etc...
     if(isDigit(c)) return numeric(sc); // Numeric chars
 
@@ -202,6 +203,7 @@ Token scanToken(Scanner* sc){
     case '>': return makeToken(sc, match(sc, '=') ? T_GREATER_EQUAL : T_GREATER);
     case '"': return string(sc);
     }
+
 
     return errorToken(sc, "unexpected character");
 }

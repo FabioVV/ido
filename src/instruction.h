@@ -6,7 +6,7 @@
 #include "idoconf.h"
 
 typedef enum {
-    OP_LOAD, // Loads a value into a register 
+    OP_LOAD, 
     OP_CONSTANT,
 
     OP_ADD,
@@ -14,9 +14,9 @@ typedef enum {
     OP_MUL,
     OP_DIV,
 
-
-    OP_HLT, // Halts the Tania vm
-    OP_IGL, // ilegal op found
+    OP_RETURN,
+    OP_HLT, // Halts the vm
+    OP_ILG, // ilegal op found
 } Opcode;
 
 #if IS32INT
@@ -26,10 +26,12 @@ typedef enum {
 #endif
 
 // Instructions handling
-#define ENC_CONSTANT(constantIndex) (OP_CONSTANT << 26) | (constantIndex & 0x03FFFFFF)
+#define GET_OPCODE(i)               ((i >> 26) & 0x3F)
+#define NEXT_INSTRUCTION(tvm)       (*tvm->pc++)
+#define ENC_CONSTANT(constantIndex) (OP_CONSTANT << 26) | (constantIndex & 0x1FFFFFF)
+#define DEC_CONSTANT(i)             (i & 0x1FFFFFF)
 
 // Instructions handling
-
 
 typedef ido_uint32 Instruction;
 
@@ -42,7 +44,7 @@ typedef struct {
 } Program;
 
 void initProgram(Program* prog);
-void writeToProgram(Program* prog, uint8_t bytecode, int line);
+void writeToProgram(Program* prog, ido_uint32 instruction, int line);
 void freeProgram(Program* prog);
 int addConstant(Program* prog, Value value);
 

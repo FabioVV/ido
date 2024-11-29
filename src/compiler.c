@@ -27,12 +27,67 @@ static Program* currentProgram(){
     return compilingProgram;
 }
 
+static void errorAt(Parser* p, Token* token, const char* message){
+    if(p->panicMode) return;
+    p->panicMode = true;
+
+    fprintf(stderr, "[line %d] error", token->line);
+
+    if(token->type == T_EOF){
+        fprintf(stderr, " at end");
+    } else if(token->type == T_ERROR){
+
+    } else {
+        fprintf(stderr, " at '%.*s'", token->length, token->start);
+    }
+
+    fprintf(stderr, ": %s\n", message);
+    
+    p->hadError = true;
+}
+
+static void error(Parser* p, const char* message){
+    errorAt(p, &p->previous, message);
+}
+
+static void errorAtCurrent(Parser* p, const char* message){
+    errorAt(p, &p->current, message);
+}
+
 static void emitReturn(){
     printf("END OF COMPILATION");
 }
 
 static void endCompilation(){
     emitReturn();
+}
+
+static void advance(Parser* p, Scanner* sc){
+    p->previous = p->current;
+    for(;;){
+        p->current = scanToken(sc);
+        if(p->current.type != T_ERROR) break;
+        errorAtCurrent(p, p->current.start);
+    }
+}
+
+static void consume(Parser* p, Scanner* sc, TokenType type, const char* message){
+    if(p->current.type == type){
+        advance(p, sc);
+        return;
+    }
+
+    errorAtCurrent(p, message);
+}
+
+static ido_uint32 createConstant(Parser* p, Value v){
+    ido_uint32 constantIndex = addConstant(currentProgram(), v);
+    if(constantIndex > UINT32_MAX){
+        error(p, "too many constants in one program");
+        return 0;
+    }
+
+    return constantIndex;
 }
 
 // static void emitInstruction(Parser *p, Scanner *sc, ido_uint32 inst, Opcode op){ // TODO: REVISIT THIS
@@ -46,8 +101,8 @@ static void endCompilation(){
 //     }
 // }
 
-static void emitConstant(Parser *p, Scanner *sc, double val){
-    writeToProgram(currentChunk(), ENC_CONSTANT(makeConstant(val)), p->previous.line);
+static void emitConstant(Parser *p, Value v){
+    writeToProgram(currentProgram(), ENC_CONSTANT(createConstant(p, v)), p->previous.line);
 }
 
 static void parsePrecedence(Parser *p, Scanner *sc, Precedence prec){
@@ -68,23 +123,10 @@ static void parsePrecedence(Parser *p, Scanner *sc, Precedence prec){
     }
 }
 
-static ido_uint32 createConstant(Parser* p, Value v){
-    ido_uint32 constant = addConstant(currentProgram(), v);
-    if(constant > UINT32_MAX){
-        error(p, "too many constants in one program");
-        return 0;
-    }
-
-    return constant;
-}
-
-// static void emitConstant(Parser *p, Scanner *scValue v){
-//     emitInstruction()
-// }
-
 static void number(Parser *p, Scanner *sc){
     double value = strtod(p->previous.start, NULL);
-    emitConstant(p, sc, value);
+    Value v = DNUMBER_VAL(value);
+    emitConstant(p, v);
 }
 
 static void unary(Parser *p, Scanner *sc){
@@ -131,51 +173,6 @@ static void binary(Parser *p, Scanner *sc){
         break;
     default: return;
     }
-}
-
-static void errorAt(Parser* p, Token* token, const char* message){
-    if(p->panicMode) return;
-    p->panicMode = true;
-
-    fprintf(stderr, "[line %d] error", token->line);
-
-    if(token->type == T_EOF){
-        fprintf(stderr, " at end");
-    } else if(token->type == T_ERROR){
-
-    } else {
-        fprintf(stderr, "at '%.*s'", token->length, token->start);
-    }
-
-    fprintf(stderr, ": %s\n", message);
-    
-    p->hadError = true;
-}
-
-static void error(Parser* p, const char* message){
-    errorAt(p, &p->previous, message);
-}
-
-static void errorAtCurrent(Parser* p, const char* message){
-    errorAt(p, &p->current, message);
-}
-
-static void advance(Parser* p, Scanner* sc){
-    p->previous = p->current;
-    for(;;){
-        p->current = scanToken(sc);
-        if(p->current.type != T_ERROR) break;
-        errorAtCurrent(p, p->current.start);
-    }
-}
-
-static void consume(Parser* p, Scanner* sc, TokenType type, const char* message){
-    if(p->current.type == type){
-        advance(p, sc);
-        return;
-    }
-
-    errorAtCurrent(p, message);
 }
 
 ParseRule rules[] = {
@@ -232,7 +229,7 @@ bool compile(const char* source, Program* program){
     p->hadError = false;
 
     advance(p, sc);
-    expression(p,sc);
+    expression(p, sc);
     consume(p, sc, T_EOF, "expect end of expression");
 
     endCompilation();

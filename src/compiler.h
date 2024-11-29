@@ -4,6 +4,7 @@
 #include "tvm.h"
 #include "token.h"
 #include "common.h"
+#include "lexer.h"
 
 typedef enum {
     PREC_NONE,
@@ -19,7 +20,15 @@ typedef enum {
     PREC_PRIMARY
 } Precedence;
 
+typedef struct {
+    Token current;
+    Token previous;
+    bool hadError;
+    bool panicMode;
+} Parser;
+
 typedef void (*ParseFn)(Parser *p, Scanner *sc);
+
 
 typedef struct {
     ParseFn prefix;
@@ -27,12 +36,6 @@ typedef struct {
     Precedence precedence;
 } ParseRule;
 
-typedef struct {
-    Token current;
-    Token previous;
-    bool hadError;
-    bool panicMode;
-} Parser;
 
 bool compile(const char* source, Program* program);
 Parser* initParser();

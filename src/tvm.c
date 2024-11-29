@@ -11,14 +11,12 @@
 
 void initVM(TVM* tvm){
     memset(tvm->registers, 0, sizeof(tvm->registers));  
-    // initProgram(&tvm->program);
     tvm->pc = 0;
 }
 
 void freeVM(TVM* tvm){
 
 }
-
 
 static uint16_t next_16_bits(TVM* tvm){
     tvm->pc += 2;
@@ -28,48 +26,29 @@ static uint16_t next_16_bits(TVM* tvm){
 
 static InterpretResult runVM(TVM* tvm){
 
-    #define NEXT_BYTE() (*tvm->pc++)
-    #define NEXT_16_BITS(tvm) next_16_bits(tvm) 
+    #define ibreak break
+
+    #define GET_CONSTANT(index) (tvm->program->constants.values[index])
 
     for(;;){
-        switch (NEXT_BYTE())
-        {
-        case OP_LOAD:{
-            uint8_t _register = NEXT_BYTE();
-            uint16_t number = NEXT_16_BITS(tvm);
-            tvm->registers[_register] = (uint32_t)number;
-            continue;
-        }
-        case OP_ADD:{
-            uint32_t _register1 = tvm->registers[NEXT_BYTE()];
-            uint32_t _register2 = tvm->registers[NEXT_BYTE()];
-            tvm->registers[NEXT_BYTE()] = _register1 + _register2;
-            continue;
-        }
-        case OP_SUB:{
-            uint32_t _register1 = tvm->registers[NEXT_BYTE()];
-            uint32_t _register2 = tvm->registers[NEXT_BYTE()];
-            tvm->registers[NEXT_BYTE()] = _register1 - _register2;
-            continue;
+        if(tvm->pc > (tvm->program->code)){
+            return INTERPRET_OK;
         }
 
-        case OP_MUL:{
-            uint32_t _register1 = tvm->registers[NEXT_BYTE()];
-            uint32_t _register2 = tvm->registers[NEXT_BYTE()];
-            tvm->registers[NEXT_BYTE()] = _register1 * _register2;
-            continue;
-        }
-        case OP_DIV:{
-            uint32_t _register1 = tvm->registers[NEXT_BYTE()];
-            uint32_t _register2 = tvm->registers[NEXT_BYTE()];
-            tvm->registers[NEXT_BYTE()] = _register1 / _register2;
-            tvm->remainder = _register1 % _register2;
-            continue;
+        register Instruction i = NEXT_INSTRUCTION(tvm);
+
+        switch (GET_OPCODE(i))
+        {
+        case OP_CONSTANT:{
+            Value v = GET_CONSTANT(DEC_CONSTANT(i));
+            printValue(v);
+            printf("\n");
+            ibreak;
         }
         case OP_HLT:
             printf("HALTING APPLICATION\n");
             return INTERPRET_HALT;
-        case OP_IGL:
+        case OP_ILG:
             printf("ILLEGAL\n");
             return INTERPRET_RUNTIME_ERROR;
         default:
@@ -78,9 +57,8 @@ static InterpretResult runVM(TVM* tvm){
         }
 
     }
-    #undef DECODE_OPCODE
-    #undef NEXT_BYTE
-    #undef NEXT_16_BITS
+
+    #undef ibreak
 }
 
 InterpretResult interpret(TVM* tvm, const char* source){

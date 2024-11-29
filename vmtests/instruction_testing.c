@@ -6,6 +6,14 @@
 // Bunch of magic numbers i know
 // Will fix it later
 
+
+// #define ENC_CONSTANT(constantIndex) (OP_CONSTANT << 26) | (constantIndex & 0x1FFFFFF)
+// #define DEC_CONSTANT(i)             (i & 0x1FFFFFF)
+
+// uint32_t e = ENC_CONSTANT(11231);
+// uint32_t d = DEC_CONSTANT(e);
+// printf("%lu aaa", d);
+
 #define IS32INT ((UINT_MAX >> 30) >= 3)
 
 #if IS32INT
@@ -82,7 +90,7 @@ int main(){
     Instruction instructions[] = {f1, f2, f3, f4, f5, f6};
 
     printf("Bytecode:\n");
-    for (int i = 0; i < 3; i++) {
+    for (int i = 0; i < 6; i++) {
         Instruction ins = instructions[i];
         printf("Instruction %d: 0x%08X\n", i, ins);
     }
