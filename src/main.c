@@ -25,8 +25,6 @@ void repl(TVM* tvm){
 int main(int argc, const char* argv[]){
     TVM tvm;
     initVM(&tvm);
-
     repl(&tvm);
-    
     return 0;
 }

@@ -37,7 +37,7 @@ void printValue(Value value){
 
     }
     case VAL_DNUMBER:{
-        printf("%g", AS_DNUMBER(value));
+        printf("%f", AS_DNUMBER(value));
         break;
     }
         
