@@ -79,6 +79,8 @@ int main(){
     #define GET_REG_B(inst) \
         ((inst & 0x1FF))
 
+
+
     Instruction f1 = ENCODE_ILOAD(2, 25);
     Instruction f2 = ENCODE_ILOAD(3, 25);
     Instruction f3 = ENCODE_ADD(1, 2, 3);

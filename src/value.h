@@ -3,7 +3,6 @@
 
 #include "common.h"
 
-
 typedef enum {
     VAL_BOOL,
     VAL_NIL, 
@@ -19,7 +18,6 @@ typedef struct {
         long inumber;
         double dnumber;
     } as;
-    
 } Value;
 
 typedef struct {
@@ -27,7 +25,6 @@ typedef struct {
     int count;
     Value* values;
 } ValueArray;
-
 
 // C VALUE TO IDO VALUE
 #define BOOL_VAL(value)    ((Value){VAL_BOOL, {.boolean = value}})

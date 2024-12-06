@@ -9,15 +9,17 @@
 #include "value.h"
 #include "instruction.h"
 
+
 static ParseRule* getRule(TokenType t);
 static void parsePrecedence(Parser *p, Scanner *sc, Precedence prec);
 static void expression(Parser *p, Scanner *sc);
 
 Program* compilingProgram;
 
-Parser* initParser(){
+Parser* initParser(TVM* tvm){
     Parser* p = malloc(sizeof(Parser));
     if(p == NULL) exit(1);
+    p->tvm = tvm;
     return p;
 }
 
@@ -88,8 +90,12 @@ static ido_uint32 createConstant(Parser* p, Value v){
     return constantIndex;
 }
 
-static void emitConstant(Parser *p, Value v){
-    writeToProgram(currentProgram(), ENC_CONSTANT(createConstant(p, v)), p->previous.line);
+static ido_uint32 emitConstant(Parser *p, Value v){
+    ido_uint32 constantIndex = createConstant(p, v);
+    ido_uint32 r = allocR(p->tvm); // Allocate a free register
+    setLastAllocatedRegister(p->tvm, r);
+    writeToProgram(currentProgram(), ENC_CONSTANT(constantIndex, r), p->previous.line);
+    return constantIndex;
 }
 
 static void parsePrecedence(Parser *p, Scanner *sc, Precedence prec){
@@ -113,7 +119,7 @@ static void parsePrecedence(Parser *p, Scanner *sc, Precedence prec){
 static void number(Parser *p, Scanner *sc){
     double value = strtod(p->previous.start, NULL);
     Value v = DNUMBER_VAL(value);
-    emitConstant(p, v);
+    ido_uint32 constantIndex = emitConstant(p, v);
 }
 
 static void unary(Parser *p, Scanner *sc){
@@ -142,12 +148,18 @@ static void grouping(Parser *p, Scanner *sc){
 static void binary(Parser *p, Scanner *sc){
     TokenType opType = p->previous.type;
     ParseRule* rule = getRule(opType);
+
+    ido_uint32 leftR = getLastAllocatedRegister(p->tvm);
+
     parsePrecedence(p, sc, (Precedence)rule->precedence+1);
+    ido_uint32 rightR = getLastAllocatedRegister(p->tvm);
+
+    ido_uint32 resultR = allocR(p->tvm);
 
     switch (opType)
     {
     case T_PLUS:
-        // emity bytecode for add
+        writeToProgram(currentProgram(), ENC_ADD(resultR, leftR, rightR), p->previous.line);
         break;
     case T_MINUS:
         // emity bytecode for sub
@@ -160,6 +172,10 @@ static void binary(Parser *p, Scanner *sc){
         break;
     default: return;
     }
+    freeR(p->tvm, leftR);
+    freeR(p->tvm, leftR);
+
+    setLastAllocatedRegister(p->tvm, resultR);
 }
 
 ParseRule rules[] = {
@@ -207,9 +223,9 @@ static ParseRule* getRule(TokenType t){
     return &rules[t];
 }
 
-bool compile(const char* source, Program* program){
+bool compile(const char* source, Program* program, TVM* tvm){
     Scanner* sc = initScanner(source);
-    Parser* p = initParser();
+    Parser* p = initParser(tvm);
     compilingProgram = program;
 
     p->panicMode = false;

@@ -29,8 +29,14 @@ typedef enum {
 #define GET_OPCODE(i)               ((i >> 26) & 0x3F)
 #define NEXT_INSTRUCTION(tvm)       (*tvm->pc++)
 
-#define ENC_CONSTANT(constantIndex) (OP_CONSTANT << 26) | (constantIndex & 0x1FFFFFF)
-#define DEC_CONSTANT(i)             (i & 0x1FFFFFF)
+#define ENC_CONSTANT(cIndex, r)     (OP_CONSTANT << 26) | (r << 18) | (cIndex & 0x1FFFF)
+#define DEC_CONSTANT_INDEX(i)       (i & 0x1FFFF)
+#define DEC_REGISTER_C(i)           ((i >> 18) & 0xFF)
+
+#define DEC_REGISTER_DEST(i)         ((i >> 18) & 0xFF)
+#define DEC_REGISTER_RA(i)           ((i >> 10) & 0xFF)
+#define DEC_REGISTER_RB(i)           ((i & 0x1FF))
+#define ENC_ADD(dstr, ra, rb)        ((OP_ADD << 26) | ((dstr & 0xFF) << 18) | ((ra & 0xFF) << 10) | (rb))
 
 #define ENC_RETURN()                (OP_RETURN << 26) & 0xFC000000
 

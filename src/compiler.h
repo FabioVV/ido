@@ -25,6 +25,8 @@ typedef struct {
     Token previous;
     bool hadError;
     bool panicMode;
+
+    TVM* tvm;
 } Parser;
 
 typedef void (*ParseFn)(Parser *p, Scanner *sc);
@@ -35,8 +37,7 @@ typedef struct {
     Precedence precedence;
 } ParseRule;
 
-
-bool compile(const char* source, Program* program);
-Parser* initParser();
+bool compile(const char* source, Program* program, TVM* tvm);
+Parser* initParser(TVM* tvm);
 
 #endif
