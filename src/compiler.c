@@ -107,22 +107,22 @@ static void parsePrecedence(Parser *p, Scanner *sc, Precedence prec){
         return;
     }
 
-    prefixRule(p, sc);
+    ido_uint32 lR = prefixRule(p, sc, 0);
 
     while(prec <= getRule(p->current.type)->precedence){
         advance(p, sc);
         ParseFn infixRule = getRule(p->previous.type)->infix;
-        infixRule(p, sc);
+        infixRule(p, sc, lR);
     }
 }
 
-static void number(Parser *p, Scanner *sc){
+static ido_uint32 number(Parser *p, Scanner *sc, ido_uint32 lR){
     double value = strtod(p->previous.start, NULL);
     Value v = DNUMBER_VAL(value);
     ido_uint32 constantIndex = emitConstant(p, v);
 }
 
-static void unary(Parser *p, Scanner *sc){
+static ido_uint32 unary(Parser *p, Scanner *sc, ido_uint32 lR){
     TokenType opType = p->previous.type;
     parsePrecedence(p, sc, PREC_UNARY);
 
@@ -132,7 +132,7 @@ static void unary(Parser *p, Scanner *sc){
         // emit bytecode for unary negation here
         break;
     
-    default: return;
+    default: return 0;
     }
 }
 
@@ -140,21 +140,27 @@ static void expression(Parser *p, Scanner *sc){
     parsePrecedence(p, sc, PREC_ASSIGNMENT);
 }
 
-static void grouping(Parser *p, Scanner *sc){
+static ido_uint32 grouping(Parser *p, Scanner *sc, ido_uint32 lR){
     expression(p, sc);
     consume(p, sc, T_RIGHT_PAREN, "expect ')' after expression");
 }
 
-static void binary(Parser *p, Scanner *sc){
+static ido_uint32 binary(Parser *p, Scanner *sc, ido_uint32 lR){
     TokenType opType = p->previous.type;
     ParseRule* rule = getRule(opType);
 
-    ido_uint32 leftR = getLastAllocatedRegister(p->tvm);
+    ido_uint32 leftR = getLastRegisterResult(p->tvm) != -1 ? getLastRegisterResult(p->tvm) : getLastAllocatedRegister(p->tvm);
 
     parsePrecedence(p, sc, (Precedence)rule->precedence+1);
-    ido_uint32 rightR = getLastAllocatedRegister(p->tvm);
 
+    ido_uint32 rightR = getLastAllocatedRegister(p->tvm);
     ido_uint32 resultR = allocR(p->tvm);
+
+    // if(getLastRegisterResult(p->tvm) != -1){
+    //     printf("aaa");
+    // } else {
+    //     printf("bbb");
+    // }
 
     switch (opType)
     {
@@ -170,12 +176,12 @@ static void binary(Parser *p, Scanner *sc){
     case T_SLASH:
         // emity bytecode for div
         break;
-    default: return;
+    default: return 0;
     }
-    freeR(p->tvm, leftR);
-    freeR(p->tvm, leftR);
+    // freeR(p->tvm, lR);
 
-    setLastAllocatedRegister(p->tvm, resultR);
+    setLastRegisterResult(p->tvm, resultR);
+    return resultR;
 }
 
 ParseRule rules[] = {
