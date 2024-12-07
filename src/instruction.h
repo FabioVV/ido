@@ -37,6 +37,9 @@ typedef enum {
 #define DEC_REGISTER_RA(i)           ((i >> 10) & 0xFF)
 #define DEC_REGISTER_RB(i)           ((i & 0x1FF))
 #define ENC_ADD(dstr, ra, rb)        ((OP_ADD << 26) | ((dstr & 0xFF) << 18) | ((ra & 0xFF) << 10) | (rb))
+#define ENC_MUL(dstr, ra, rb)        ((OP_MUL << 26) | ((dstr & 0xFF) << 18) | ((ra & 0xFF) << 10) | (rb))
+#define ENC_SUB(dstr, ra, rb)        ((OP_SUB << 26) | ((dstr & 0xFF) << 18) | ((ra & 0xFF) << 10) | (rb))
+#define ENC_DIV(dstr, ra, rb)        ((OP_DIV << 26) | ((dstr & 0xFF) << 18) | ((ra & 0xFF) << 10) | (rb))
 
 #define ENC_RETURN()                (OP_RETURN << 26) & 0xFC000000
 

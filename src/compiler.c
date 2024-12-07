@@ -149,18 +149,12 @@ static ido_uint32 binary(Parser *p, Scanner *sc, ido_uint32 lR){
     TokenType opType = p->previous.type;
     ParseRule* rule = getRule(opType);
 
-    ido_uint32 leftR = getLastRegisterResult(p->tvm) != -1 ? getLastRegisterResult(p->tvm) : getLastAllocatedRegister(p->tvm);
-
+    ido_uint32 leftR = (getLastRegisterResult(p->tvm) != -1) ? getLastRegisterResult(p->tvm) : getLastAllocatedRegister(p->tvm);
     parsePrecedence(p, sc, (Precedence)rule->precedence+1);
 
     ido_uint32 rightR = getLastAllocatedRegister(p->tvm);
     ido_uint32 resultR = allocR(p->tvm);
 
-    // if(getLastRegisterResult(p->tvm) != -1){
-    //     printf("aaa");
-    // } else {
-    //     printf("bbb");
-    // }
 
     switch (opType)
     {
@@ -168,19 +162,26 @@ static ido_uint32 binary(Parser *p, Scanner *sc, ido_uint32 lR){
         writeToProgram(currentProgram(), ENC_ADD(resultR, leftR, rightR), p->previous.line);
         break;
     case T_MINUS:
-        // emity bytecode for sub
+        writeToProgram(currentProgram(), ENC_SUB(resultR, leftR, rightR), p->previous.line);
         break;
     case T_STAR:
-        // emity bytecode for mult
+        writeToProgram(currentProgram(), ENC_MUL(resultR, leftR, rightR), p->previous.line);
         break;
     case T_SLASH:
-        // emity bytecode for div
+        writeToProgram(currentProgram(), ENC_DIV(resultR, leftR, rightR), p->previous.line);
         break;
     default: return 0;
     }
+
     // freeR(p->tvm, lR);
 
+    freeR(p->tvm, leftR);
+    freeR(p->tvm, rightR);
+    // freeR(p->tvm, resultR);
+
     setLastRegisterResult(p->tvm, resultR);
+    setLastAllocatedRegister(p->tvm, resultR);
+
     return resultR;
 }
 

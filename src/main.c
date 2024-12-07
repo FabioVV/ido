@@ -1,6 +1,5 @@
 #include <stdio.h>
 #include "tvm.h"
-#include "instruction.h"
 
 void repl(TVM* tvm){
     char line[1024];

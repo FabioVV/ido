@@ -30,7 +30,7 @@ typedef struct {
 #define BOOL_VAL(value)    ((Value){VAL_BOOL, {.boolean = value}})
 #define INUMBER_VAL(value) ((Value){VAL_INUMBER, {.inumber = value}})
 #define DNUMBER_VAL(value) ((Value){VAL_DNUMBER, {.dnumber = value}})
-#define NIL_VAL(value)     ((Value){VAL_NIL, {.inumber = 0}})
+#define NIL_VAL()     ((Value){VAL_NIL, {.inumber = 0}})
 
 // IDO VALUE TO C VALUE
 #define AS_BOOL(value)     ((value).as.boolean)

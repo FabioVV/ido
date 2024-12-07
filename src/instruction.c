@@ -3,6 +3,7 @@
 
 #include "instruction.h"
 #include "memory.h"
+#include <stdio.h>
 
 void initProgram(Program* prog){
     prog->capacity = 0;
@@ -24,6 +25,7 @@ void writeToProgram(Program* prog, ido_uint32 bytecode, int line){
     prog->lines[prog->count] = line;
 
     prog->count++;
+
 }
 
 void freeProgram(Program* prog){

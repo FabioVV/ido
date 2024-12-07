@@ -2,22 +2,23 @@
 #ifndef C_TANIAVM
 #define C_TANIAVM
 
-#include <string.h>
-#include <stdio.h>
+#include "common.h"
 #include "tvm.h"
 #include "instruction.h"
-#include "memory.h"
 #include "compiler.h"
+#include "value.h"
+#include <stdio.h>
+
 
 void initVM(TVM* tvm){
-    memset(tvm->registers, 0, sizeof(tvm->registers));  
     for (int i = 0; i < REGISTERS_NUM; i++) {
+        tvm->registers[i] = NIL_VAL();
         tvm->free_registers[i] = i;  // All registers are initially free (may change)
-        tvm->used_registers[i] = -1; // None are in use
     }
-    tvm->last_allocated_register = -1; // Initialize with an invalid register
-    tvm->last_result_register = -1; // Initialize with an invalid register
-    
+
+    tvm->last_allocated_register = INVALID_REGISTER; // Initialize with an invalid register
+    tvm->last_result_register = INVALID_REGISTER; // Initialize with an invalid register
+    tvm->free_register_count = REGISTERS_NUM;
     tvm->pc = 0;
 }
 
@@ -46,61 +47,60 @@ void setLastRegisterResult(TVM* tvm, ido_uint32 r){
 }
 
 ido_uint32 allocR(TVM* tvm){
-    for(int i = 0; i < REGISTERS_NUM; i++){
-        if(tvm->free_registers[i]){
-            tvm->free_registers[i] = false;
-            return i;
-        }
+    if(tvm->free_register_count == 0){
+        fprintf(stderr, "registererr: no free registers for op\n");
+        exit(1);
     }
-    fprintf(stderr, "registererr: no free registers for op\n");
-    exit(1);
+    return tvm->free_registers[--tvm->free_register_count];
 }
 
-ido_uint32 freeR(TVM* tvm, ido_uint32 r){
-    if(r < REGISTERS_NUM){
-        tvm->free_registers[r] = true;
-    } else {
+void freeR(TVM* tvm, ido_uint32 r){
+    if(!IS_REGISTER_FREE(r)){
         fprintf(stderr, "registererr: attempted to free invalid register %u\n", r);
+        exit(1);
     }
+    tvm->free_registers[tvm->free_register_count++] = r;
 }
 
 static InterpretResult runVM(TVM* tvm){
 
     #define ibreak break
-
     #define GET_CONSTANT(index) (tvm->program->constants.values[index])
+    #define BINARY_OP(op) \
+        do { \
+            ido_uint32 rD = DEC_REGISTER_DEST(i);\
+            Value rA = !IS_DNUMBER(tvm->registers[DEC_REGISTER_RA(i)]) ? GET_CONSTANT(AS_INUMBER(tvm->registers[DEC_REGISTER_RA(i)])): tvm->registers[DEC_REGISTER_RA(i)];\
+            Value rB = !IS_DNUMBER(tvm->registers[DEC_REGISTER_RB(i)]) ? GET_CONSTANT(AS_INUMBER(tvm->registers[DEC_REGISTER_RB(i)])): tvm->registers[DEC_REGISTER_RB(i)];\
+            if(rB.as.dnumber == 0){\
+                printf("matherr: division by zero\n");\
+                exit(1);\
+            }\
+            tvm->registers[rD] = DNUMBER_VAL(rA.as.dnumber op rB.as.dnumber);\
+            printf("result: %f\n", AS_DNUMBER(tvm->registers[rD]));\
+            freeR(tvm, rD);\
+            setLastRegisterResult(tvm, INVALID_REGISTER);\
+        } while(false)\
 
     for(;;){
-        // if(tvm->pc > (tvm->program->code)){
-        //     return INTERPRET_OK;
-        // }
-
         register Instruction i = NEXT_INSTRUCTION(tvm);
 
         switch (GET_OPCODE(i))
         {
         case OP_CONSTANT:{
             ido_uint32 r = DEC_REGISTER_C(i);
-            ido_uint32 constantIndex = DEC_CONSTANT_INDEX(i); 
+            ido_uint32 constantIndex = DEC_CONSTANT_INDEX(i);
+
             tvm->registers[r] = INUMBER_VAL(constantIndex);
-            // printf("constant ");
-            // printValue(GET_CONSTANT(constantIndex));
-            // printf(" loaded in R%i\n", r);
-            ibreak;
-        }
-        case OP_ADD:{
-            // printf("ADD OP: \n");
-            ido_uint32 rD = DEC_REGISTER_DEST(i);
-            Value rA = GET_CONSTANT(AS_INUMBER(tvm->registers[DEC_REGISTER_RA(i)]));
-            Value rB = GET_CONSTANT(AS_INUMBER(tvm->registers[DEC_REGISTER_RB(i)]));
-
-            printf("%i %i %i", rD, DEC_REGISTER_RA(i), DEC_REGISTER_RB(i));
-
-            tvm->registers[rD] = DNUMBER_VAL(rA.as.dnumber + rB.as.dnumber);
-            printf("result = %f\n", AS_DNUMBER(tvm->registers[rD]));
 
             ibreak;
         }
+        case OP_ADD:{BINARY_OP(+); ibreak;}
+        case OP_SUB:{BINARY_OP(-); ibreak;}
+        case OP_MUL:{BINARY_OP(*); ibreak;}
+        case OP_DIV:{BINARY_OP(/); ibreak;}
+
+
+
         case OP_RETURN:{
             return INTERPRET_OK;
             ibreak;
