@@ -1,6 +1,6 @@
 #include <stdio.h>
 #include <string.h> // for memset
-#include <stdlib.h> // for UINT_MAX
+#include <limits.h> // for UINT_MAX
 #include <stdint.h> // for uint8_t
 
 // Bunch of magic numbers i know
@@ -63,7 +63,6 @@ int main(){
     #define GET_OPR_LARGE_CONSTANT(inst) \
         (inst & 0x3FFFF)
 
-
     #define ENCODE_ADD(dstr, ra, rb) \
         ((OP_ADD << 26) | ((dstr & 0xFF) << 18) | ((ra & 0xFF) << 10) | (rb))
     
@@ -78,7 +77,6 @@ int main(){
 
     #define GET_REG_B(inst) \
         ((inst & 0x1FF))
-
 
 
     Instruction f1 = ENCODE_ILOAD(2, 25);

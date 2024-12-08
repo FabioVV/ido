@@ -14,6 +14,8 @@ typedef enum {
     OP_MUL,
     OP_DIV,
 
+    OP_NEG,
+
     OP_RETURN,
     OP_HLT, // Halts the vm
     OP_ILG, // ilegal op found
@@ -41,7 +43,11 @@ typedef enum {
 #define ENC_SUB(dstr, ra, rb)        ((OP_SUB << 26) | ((dstr & 0xFF) << 18) | ((ra & 0xFF) << 10) | (rb))
 #define ENC_DIV(dstr, ra, rb)        ((OP_DIV << 26) | ((dstr & 0xFF) << 18) | ((ra & 0xFF) << 10) | (rb))
 
-#define ENC_RETURN()                (OP_RETURN << 26) & 0xFC000000
+#define ENC_NEG(r)                   ((OP_NEG << 26) | ((r & 0xFF) << 18))
+#define DEC_NEG(r)                   ((i >> 18) & 0xFF)
+
+
+#define ENC_RETURN()                 (OP_RETURN << 26) & 0xFC000000
 
 // Instructions handling
 

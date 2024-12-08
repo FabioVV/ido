@@ -29,7 +29,7 @@ typedef struct {
     TVM* tvm;
 } Parser;
 
-typedef ido_uint32 (*ParseFn)(Parser *p, Scanner *sc, ido_uint32 lR);
+typedef void (*ParseFn)(Parser *p, Scanner *sc);
 
 typedef struct {
     ParseFn prefix;

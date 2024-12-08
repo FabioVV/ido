@@ -54,7 +54,7 @@ static void errorAtCurrent(Parser* p, const char* message){
     errorAt(p, &p->current, message);
 }
 
-static void emitReturn(Parser* p){
+static void inline emitReturn(Parser* p){
     writeToProgram(currentProgram(), ENC_RETURN(), p->previous.line);
 }
 
@@ -90,12 +90,12 @@ static ido_uint32 createConstant(Parser* p, Value v){
     return constantIndex;
 }
 
-static ido_uint32 emitConstant(Parser *p, Value v){
+static void emitConstant(Parser *p, Value v){
     ido_uint32 constantIndex = createConstant(p, v);
     ido_uint32 r = allocR(p->tvm); // Allocate a free register
+
     setLastAllocatedRegister(p->tvm, r);
     writeToProgram(currentProgram(), ENC_CONSTANT(constantIndex, r), p->previous.line);
-    return constantIndex;
 }
 
 static void parsePrecedence(Parser *p, Scanner *sc, Precedence prec){
@@ -107,32 +107,31 @@ static void parsePrecedence(Parser *p, Scanner *sc, Precedence prec){
         return;
     }
 
-    ido_uint32 lR = prefixRule(p, sc, 0);
+    prefixRule(p, sc);
 
     while(prec <= getRule(p->current.type)->precedence){
         advance(p, sc);
         ParseFn infixRule = getRule(p->previous.type)->infix;
-        infixRule(p, sc, lR);
+        infixRule(p, sc);
     }
 }
 
-static ido_uint32 number(Parser *p, Scanner *sc, ido_uint32 lR){
+static void number(Parser *p, Scanner *sc){
     double value = strtod(p->previous.start, NULL);
     Value v = DNUMBER_VAL(value);
-    ido_uint32 constantIndex = emitConstant(p, v);
+    emitConstant(p, v);
 }
 
-static ido_uint32 unary(Parser *p, Scanner *sc, ido_uint32 lR){
+static void unary(Parser *p, Scanner *sc){
     TokenType opType = p->previous.type;
     parsePrecedence(p, sc, PREC_UNARY);
 
     switch (opType)
     {
     case T_MINUS: 
-        // emit bytecode for unary negation here
+        writeToProgram(currentProgram(), ENC_NEG(getLastAllocatedRegister(p->tvm)), p->previous.line);
         break;
-    
-    default: return 0;
+    default: return;
     }
 }
 
@@ -140,12 +139,12 @@ static void expression(Parser *p, Scanner *sc){
     parsePrecedence(p, sc, PREC_ASSIGNMENT);
 }
 
-static ido_uint32 grouping(Parser *p, Scanner *sc, ido_uint32 lR){
+static void inline grouping(Parser *p, Scanner *sc){
     expression(p, sc);
     consume(p, sc, T_RIGHT_PAREN, "expect ')' after expression");
 }
 
-static ido_uint32 binary(Parser *p, Scanner *sc, ido_uint32 lR){
+static void binary(Parser *p, Scanner *sc){
     TokenType opType = p->previous.type;
     ParseRule* rule = getRule(opType);
 
@@ -170,19 +169,15 @@ static ido_uint32 binary(Parser *p, Scanner *sc, ido_uint32 lR){
     case T_SLASH:
         writeToProgram(currentProgram(), ENC_DIV(resultR, leftR, rightR), p->previous.line);
         break;
-    default: return 0;
+    default: return;
     }
-
-    // freeR(p->tvm, lR);
 
     freeR(p->tvm, leftR);
     freeR(p->tvm, rightR);
-    // freeR(p->tvm, resultR);
 
     setLastRegisterResult(p->tvm, resultR);
     setLastAllocatedRegister(p->tvm, resultR);
 
-    return resultR;
 }
 
 ParseRule rules[] = {

@@ -99,7 +99,14 @@ static InterpretResult runVM(TVM* tvm){
         case OP_MUL:{BINARY_OP(*); ibreak;}
         case OP_DIV:{BINARY_OP(/); ibreak;}
 
+        case OP_NEG:{
+            ido_uint32 r = DEC_NEG(i);
+            printf("R%i\n", r);
 
+            Value v = GET_CONSTANT(AS_INUMBER(tvm->registers[r]));
+            tvm->program->constants.values[AS_INUMBER(tvm->registers[r])] = DNUMBER_VAL(-v.as.dnumber);
+
+        }
 
         case OP_RETURN:{
             return INTERPRET_OK;
