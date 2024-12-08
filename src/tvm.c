@@ -77,7 +77,6 @@ static InterpretResult runVM(TVM* tvm){
             }\
             tvm->registers[rD] = DNUMBER_VAL(rA.as.dnumber op rB.as.dnumber);\
             printf("result: %f\n", AS_DNUMBER(tvm->registers[rD]));\
-            freeR(tvm, rD);\
             setLastRegisterResult(tvm, INVALID_REGISTER);\
         } while(false)\
 
