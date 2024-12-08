@@ -17,24 +17,30 @@ all: $(TARGET)
 
 # Linking the executable
 $(TARGET): $(OBJ)
-	$(CC) $(CFLAGS) -o $(TARGET) $(OBJ)
+	@echo "=> linking executable"
+	@$(CC) $(CFLAGS) -o $(TARGET) $(OBJ)
 
 # Compile object files
 $(OBJ_DIR)/%.o: $(SRC_DIR)/%.c | $(OBJ_DIR)
-	$(CC) $(CFLAGS) -c $< -o $@
+	@echo "=> compiling object files..."
+	@$(CC) $(CFLAGS) -c $< -o $@
 
 # Ensure obj directory exists
 $(OBJ_DIR):
-	mkdir -p $(OBJ_DIR)
+	@echo "=> creating obj folder"
+	@mkdir -p $(OBJ_DIR)
 
 # Clean build files
 clean:
-	rm -rf $(OBJ_DIR) $(TARGET)
+	@echo "=> cleaning files"
+	@rm -rf $(OBJ_DIR) $(TARGET)
 
 # Run the program
 run: $(TARGET)
-	./$(TARGET)
+	@echo "=> running IDO"
+	@./$(TARGET)
 
 # Debug the program
 debug: $(TARGET)
-	gdb ./$(TARGET)
+	@echo "=> running IDO on debug mode"
+	@gdb ./$(TARGET)

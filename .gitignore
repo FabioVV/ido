@@ -1,6 +1,8 @@
 # Objects folder ((for ido))
 obj/
 
+ido
+
 # Prerequisites
 *.d
 
