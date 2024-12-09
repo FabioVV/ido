@@ -174,10 +174,16 @@ static void binary(Parser *p, Scanner *sc){
 
     freeR(p->tvm, leftR);
     freeR(p->tvm, rightR);
-
     setLastRegisterResult(p->tvm, resultR);
     setLastAllocatedRegister(p->tvm, resultR);
+}
 
+static void literal(Parser *p, Scanner *sc){
+    switch (p->previous.type) {
+        case T_FALSE:
+        case T_TRUE:
+        case T_NIL:
+    }
 }
 
 ParseRule rules[] = {
@@ -206,15 +212,15 @@ ParseRule rules[] = {
   [T_INT]           = {number,   NULL,   PREC_NONE},
   [T_AND]           = {NULL,     NULL,   PREC_NONE},
   [T_ELSE]          = {NULL,     NULL,   PREC_NONE},
-  [T_FALSE]         = {NULL,     NULL,   PREC_NONE},
+  [T_FALSE]         = {literal,  NULL,   PREC_NONE},
   [T_FOR]           = {NULL,     NULL,   PREC_NONE},
   [T_FN]            = {NULL,     NULL,   PREC_NONE},
   [T_IF]            = {NULL,     NULL,   PREC_NONE},
-  [T_NIL]           = {NULL,     NULL,   PREC_NONE},
+  [T_NIL]           = {literal,  NULL,   PREC_NONE},
   [T_OR]            = {NULL,     NULL,   PREC_NONE},
   [T_PRINT]         = {NULL,     NULL,   PREC_NONE},
   [T_RETURN]        = {NULL,     NULL,   PREC_NONE},
-  [T_TRUE]          = {NULL,     NULL,   PREC_NONE},
+  [T_TRUE]          = {literal,  NULL,   PREC_NONE},
   [T_VAR]           = {NULL,     NULL,   PREC_NONE},
   [T_WHILE]         = {NULL,     NULL,   PREC_NONE},
   [T_ERROR]         = {NULL,     NULL,   PREC_NONE},

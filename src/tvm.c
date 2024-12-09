@@ -2,12 +2,13 @@
 #ifndef C_TANIAVM
 #define C_TANIAVM
 
+#include <stdarg.h>
+#include <stdio.h>
 #include "common.h"
 #include "tvm.h"
 #include "instruction.h"
 #include "compiler.h"
 #include "value.h"
-#include <stdio.h>
 
 
 void initVM(TVM* tvm){
@@ -24,6 +25,18 @@ void initVM(TVM* tvm){
 
 void freeVM(TVM* tvm){
 
+}
+
+static void runtimeErr(TVM* tvm, const char* format, ...){
+    va_list args;
+    va_start(args, format);
+    vfprintf(stderr, format, args);
+    va_end(args);
+    fputs("\n", stderr);
+
+    size_t inst = tvm->pc - tvm->program->code - 1;
+    int line = tvm->program->lines[inst];
+    fprintf(stderr, "[line %d] in script \n", line);
 }
 
 ido_uint32 getLastAllocatedRegister(TVM* tvm){
@@ -71,9 +84,9 @@ static InterpretResult runVM(TVM* tvm){
             ido_uint32 rD = DEC_REGISTER_DEST(i);\
             Value rA = !IS_DNUMBER(tvm->registers[DEC_REGISTER_RA(i)]) ? GET_CONSTANT(AS_INUMBER(tvm->registers[DEC_REGISTER_RA(i)])): tvm->registers[DEC_REGISTER_RA(i)];\
             Value rB = !IS_DNUMBER(tvm->registers[DEC_REGISTER_RB(i)]) ? GET_CONSTANT(AS_INUMBER(tvm->registers[DEC_REGISTER_RB(i)])): tvm->registers[DEC_REGISTER_RB(i)];\
-            if(rB.as.dnumber == 0){\
-                printf("matherr: division by zero on line %i\n", *(tvm->program->lines));\
-                exit(1);\
+            if(!IS_NUMBER(rA) || !IS_NUMBER(rB)){\
+                runtimeErr(tvm, "matherr: operands must be numbers");\
+                return INTERPRET_RUNTIME_ERROR;\
             }\
             tvm->registers[rD] = DNUMBER_VAL(rA.as.dnumber op rB.as.dnumber);\
             printf("result: %f\n", AS_DNUMBER(tvm->registers[rD]));\
@@ -97,11 +110,8 @@ static InterpretResult runVM(TVM* tvm){
         case OP_SUB:{BINARY_OP(-); ibreak;}
         case OP_MUL:{BINARY_OP(*); ibreak;}
         case OP_DIV:{BINARY_OP(/); ibreak;}
-
         case OP_NEG:{
             ido_uint32 r = DEC_NEG(i);
-            printf("R%i\n", r);
-
             Value v = GET_CONSTANT(AS_INUMBER(tvm->registers[r]));
             tvm->program->constants.values[AS_INUMBER(tvm->registers[r])] = DNUMBER_VAL(-v.as.dnumber);
             ibreak;

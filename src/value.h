@@ -41,6 +41,7 @@ typedef struct {
 #define IS_BOOL(value)     ((value).type == VAL_BOOL)
 #define IS_INUMBER(value)  ((value).type == VAL_INUMBER)
 #define IS_DNUMBER(value)  ((value).type == VAL_DNUMBER)
+#define IS_NUMBER(value)   (((value).type == VAL_DNUMBER) || ((value).type == VAL_INUMBER))
 #define IS_NIL(value)      ((value).type == VAL_NIL)
 
 
