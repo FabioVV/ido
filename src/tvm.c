@@ -99,11 +99,9 @@ static InterpretResult runVM(TVM* tvm){
         switch (GET_OPCODE(i))
         {
         case OP_CONSTANT:{
-            ido_uint32 r = DEC_REGISTER_C(i);
+            ido_uint32 r = DEC_REGISTER_DEST(i);
             ido_uint32 constantIndex = DEC_CONSTANT_INDEX(i);
-
             tvm->registers[r] = INUMBER_VAL(constantIndex);
-
             ibreak;
         }
         case OP_ADD:{BINARY_OP(+); ibreak;}
@@ -111,24 +109,38 @@ static InterpretResult runVM(TVM* tvm){
         case OP_MUL:{BINARY_OP(*); ibreak;}
         case OP_DIV:{BINARY_OP(/); ibreak;}
         case OP_NEG:{
-            ido_uint32 r = DEC_NEG(i);
+            ido_uint32 r = DEC_REGISTER_DEST(i);
             Value v = GET_CONSTANT(AS_INUMBER(tvm->registers[r]));
             tvm->program->constants.values[AS_INUMBER(tvm->registers[r])] = DNUMBER_VAL(-v.as.dnumber);
             ibreak;
         }
-
+        case OP_TRUE:{
+            ido_uint32 r = DEC_REGISTER_DEST(i);
+            tvm->registers[r] = BOOL_VAL(true);
+            setLastRegisterResult(tvm, INVALID_REGISTER);
+            ibreak;
+        }
+        case OP_FALSE:{
+            ido_uint32 r = DEC_REGISTER_DEST(i);
+            tvm->registers[r] = BOOL_VAL(false);
+            setLastRegisterResult(tvm, INVALID_REGISTER);
+            ibreak;
+        }
+        case OP_NIL:{
+            ido_uint32 r = DEC_REGISTER_DEST(i);
+            tvm->registers[r] = NIL_VAL();
+            setLastRegisterResult(tvm, INVALID_REGISTER);
+            ibreak;
+        }
         case OP_RETURN:{
             return INTERPRET_OK;
             ibreak;
         }
         case OP_HLT:
-            printf("HALTING APPLICATION\n");
+            printf("HALTING...\n");
             return INTERPRET_HALT;
-        case OP_ILG:
-            printf("ILLEGAL\n");
-            return INTERPRET_RUNTIME_ERROR;
         default:
-            printf("something has gone wrong. unrecognized opcode");
+            runtimeErr(tvm, "opcode: something has gone wrong. unrecognized code of operation");
             return INTERPRET_RUNTIME_ERROR;
         }
 

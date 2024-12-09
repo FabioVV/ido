@@ -34,16 +34,10 @@ void freeValueArray(ValueArray* array){
 void printValue(Value value){
     switch (value.type)
     {
-    case VAL_INUMBER:{
-        printf("%lu", AS_INUMBER(value));
-        break;
-
-    }
-    case VAL_DNUMBER:{
-        printf("%f", AS_DNUMBER(value));
-        break;
-    }
-        
+    case VAL_INUMBER: printf("%lu\n", AS_INUMBER(value)); break;
+    case VAL_DNUMBER: printf("%f\n", AS_DNUMBER(value)); break;
+    case VAL_NIL:     printf("nil\n"); break;
+    case VAL_BOOL:    printf(AS_BOOL(value) ? "true\n" : "false\n"); break; 
     default: return;
     }
 }

@@ -55,7 +55,7 @@ static void errorAtCurrent(Parser* p, const char* message){
 }
 
 static void inline emitReturn(Parser* p){
-    writeToProgram(currentProgram(), ENC_RETURN(), p->previous.line);
+    writeToProgram(currentProgram(), ENC_RETURN, p->previous.line);
 }
 
 static void endCompilation(Parser* p){
@@ -179,11 +179,17 @@ static void binary(Parser *p, Scanner *sc){
 }
 
 static void literal(Parser *p, Scanner *sc){
+    ido_uint32 resultR = allocR(p->tvm);
+
     switch (p->previous.type) {
-        case T_FALSE:
-        case T_TRUE:
-        case T_NIL:
+        case T_TRUE:  writeToProgram(currentProgram(), ENC_TRUE(resultR), p->previous.line); break;
+        case T_FALSE: writeToProgram(currentProgram(), ENC_FALSE(resultR), p->previous.line); break;
+        case T_NIL:   writeToProgram(currentProgram(), ENC_NIL(resultR), p->previous.line); break;
     }
+
+    freeR(p->tvm, resultR); // is it necessary?
+    setLastRegisterResult(p->tvm, resultR);
+    setLastAllocatedRegister(p->tvm, resultR);
 }
 
 ParseRule rules[] = {

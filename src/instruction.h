@@ -16,6 +16,11 @@ typedef enum {
 
     OP_NEG,
 
+    OP_TRUE,
+    OP_FALSE,
+    OP_NIL,
+
+
     OP_RETURN,
     OP_HLT, // Halts the vm
     OP_ILG, // ilegal op found
@@ -33,21 +38,25 @@ typedef enum {
 
 #define ENC_CONSTANT(cIndex, r)     (OP_CONSTANT << 26) | (r << 18) | (cIndex & 0x1FFFF)
 #define DEC_CONSTANT_INDEX(i)       (i & 0x1FFFF)
-#define DEC_REGISTER_C(i)           ((i >> 18) & 0xFF)
+// #define DEC_REGISTER_C(i)           ((i >> 18) & 0xFF)
 
 #define DEC_REGISTER_DEST(i)         ((i >> 18) & 0xFF)
 #define DEC_REGISTER_RA(i)           ((i >> 10) & 0xFF)
 #define DEC_REGISTER_RB(i)           ((i & 0x1FF))
+
 #define ENC_ADD(dstr, ra, rb)        ((OP_ADD << 26) | ((dstr & 0xFF) << 18) | ((ra & 0xFF) << 10) | (rb))
 #define ENC_MUL(dstr, ra, rb)        ((OP_MUL << 26) | ((dstr & 0xFF) << 18) | ((ra & 0xFF) << 10) | (rb))
 #define ENC_SUB(dstr, ra, rb)        ((OP_SUB << 26) | ((dstr & 0xFF) << 18) | ((ra & 0xFF) << 10) | (rb))
 #define ENC_DIV(dstr, ra, rb)        ((OP_DIV << 26) | ((dstr & 0xFF) << 18) | ((ra & 0xFF) << 10) | (rb))
 
 #define ENC_NEG(r)                   ((OP_NEG << 26) | ((r & 0xFF) << 18))
-#define DEC_NEG(r)                   ((i >> 18) & 0xFF)
+// #define DEC_NEG(r)                   ((i >> 18) & 0xFF)
 
+#define ENC_TRUE(r)                  (OP_TRUE   << 26) | (r << 18)
+#define ENC_FALSE(r)                 (OP_FALSE  << 26) | (r << 18)
+#define ENC_NIL(r)                   (OP_NIL    << 26) | (r << 18)
 
-#define ENC_RETURN()                 (OP_RETURN << 26) & 0xFC000000
+#define ENC_RETURN                   (OP_RETURN << 26) & 0xFC000000
 
 // Instructions handling
 

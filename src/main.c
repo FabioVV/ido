@@ -1,10 +1,12 @@
 #include <stdio.h>
 #include "tvm.h"
+#include "sysinf.h"
 
 void repl(TVM* tvm){
     char line[1024];
     int lc = 1;
-
+    sys_info_print_repl();
+    
     for(;;){
         printf("[%03d]> ", lc);
 

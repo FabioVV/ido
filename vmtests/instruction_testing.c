@@ -60,6 +60,9 @@ int main(){
     // like numbers and strings in an constant pool. You would then use the index of the obj in the constant pool
     // to encode in the instruction, but here iam simply passing the full number directly to the bytecode instruction
     // you could do that in a real VM, but problems would arise as soon as the number becomes too big to fit in the instruction
+
+    // But be not discouraged, its better to use immediate instructions for literals like true, false, nil, small integers etc
+    // its saves space and computation, as it will not generate a constant that will have to be accessed through indexation later
     #define GET_OPR_LARGE_CONSTANT(inst) \
         (inst & 0x3FFFF)
 
