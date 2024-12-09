@@ -44,10 +44,17 @@ typedef struct {
 #define IS_NUMBER(value)   (((value).type == VAL_DNUMBER) || ((value).type == VAL_INUMBER))
 #define IS_NIL(value)      ((value).type == VAL_NIL)
 
+// Get type
+#define GET_TYPE(val) ((val).type)
 
 void initValueArray(ValueArray* array);
 void writeValueArray(ValueArray* array, Value value);
 void freeValueArray(ValueArray* array);
 
 void printValue(Value value);
+
+bool valuesEqual(Value a, Value b);
+bool valuesLessEqual(Value a, Value b);
+bool valuesGreaterEqual(Value a, Value b);
+bool valuesNotEqual(Value a, Value b);
 #endif 

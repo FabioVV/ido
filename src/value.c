@@ -42,4 +42,49 @@ void printValue(Value value){
     }
 }
 
+bool valuesEqual(Value a, Value b){
+  if(a.type != b.type) return false;
+  switch(a.type){
+  case VAL_BOOL: return AS_BOOL(a) == AS_BOOL(b);
+  case VAL_NIL: return true;
+  case VAL_DNUMBER:  return AS_DNUMBER(a) == AS_DNUMBER(b);
+  case VAL_INUMBER:  return AS_INUMBER(a) == AS_INUMBER(b);
+    default: return false;
+  }
+}
+
+bool valuesGreaterEqual(Value a, Value b){
+  if(a.type != b.type) return false;
+  switch(a.type){
+  case VAL_BOOL: return AS_BOOL(a) >= AS_BOOL(b);
+  case VAL_NIL: return true;
+  case VAL_DNUMBER:  return AS_DNUMBER(a) >= AS_DNUMBER(b);
+  case VAL_INUMBER:  return AS_INUMBER(a) >= AS_INUMBER(b);
+  default: return false; // Unreachable
+  }
+}
+
+bool valuesLessEqual(Value a, Value b){
+  if(a.type != b.type) return false;
+  switch(a.type){
+  case VAL_BOOL: return AS_BOOL(a) <= AS_BOOL(b);
+  case VAL_NIL: return true;
+  case VAL_DNUMBER:  return AS_DNUMBER(a) <= AS_DNUMBER(b);
+  case VAL_INUMBER:  return AS_INUMBER(a) <= AS_INUMBER(b);
+  default: return false; // Unreachable
+  }
+}
+
+bool valuesNotEqual(Value a, Value b){
+  if(a.type != b.type) return false;
+  switch(a.type){
+  case VAL_BOOL: return AS_BOOL(a) != AS_BOOL(b);
+  case VAL_NIL: return true;
+  case VAL_DNUMBER:  return AS_DNUMBER(a) != AS_DNUMBER(b);
+  case VAL_INUMBER:  return AS_INUMBER(a) != AS_INUMBER(b);
+  default: return false; // Unreachable
+  }
+}
+
+
 #endif 

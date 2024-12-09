@@ -59,6 +59,10 @@ void setLastRegisterResult(TVM* tvm, ido_uint32 r){
     tvm->last_result_register = r;
 }
 
+static bool isFalsey(Value v){
+    return IS_NIL(v) || (IS_BOOL(v) && !AS_BOOL(v));
+}
+
 ido_uint32 allocR(TVM* tvm){
     if(tvm->free_register_count == 0){
         fprintf(stderr, "registererr: no free registers for op\n");
@@ -76,10 +80,28 @@ void freeR(TVM* tvm, ido_uint32 r){
 }
 
 static InterpretResult runVM(TVM* tvm){
-
     #define ibreak break
+
     #define GET_CONSTANT(index) (tvm->program->constants.values[index])
-    #define BINARY_OP(op) \
+
+    #define GET_REGISTER_VALUE(target, source)\
+    do {\
+        switch (GET_TYPE(source)) {\
+            case VAL_INUMBER:\
+                target = GET_CONSTANT(AS_INUMBER(source));\
+                break;\
+            case VAL_NIL:\
+                target = NIL_VAL();\
+                break;\
+            case VAL_DNUMBER:\
+            case VAL_BOOL:\
+                target = source;\
+                break;\
+            default: target = NIL_VAL();\
+        }\
+    } while (false)
+    
+    #define BINARY_OP(vType, op) \
         do { \
             ido_uint32 rD = DEC_REGISTER_DEST(i);\
             Value rA = !IS_DNUMBER(tvm->registers[DEC_REGISTER_RA(i)]) ? GET_CONSTANT(AS_INUMBER(tvm->registers[DEC_REGISTER_RA(i)])): tvm->registers[DEC_REGISTER_RA(i)];\
@@ -88,8 +110,8 @@ static InterpretResult runVM(TVM* tvm){
                 runtimeErr(tvm, "matherr: operands must be numbers");\
                 return INTERPRET_RUNTIME_ERROR;\
             }\
-            tvm->registers[rD] = DNUMBER_VAL(rA.as.dnumber op rB.as.dnumber);\
-            printf("result: %f\n", AS_DNUMBER(tvm->registers[rD]));\
+            tvm->registers[rD] = vType(rA.as.dnumber op rB.as.dnumber);\
+            printValue(tvm->registers[rD]);\
             setLastRegisterResult(tvm, INVALID_REGISTER);\
         } while(false)\
 
@@ -104,10 +126,10 @@ static InterpretResult runVM(TVM* tvm){
             tvm->registers[r] = INUMBER_VAL(constantIndex);
             ibreak;
         }
-        case OP_ADD:{BINARY_OP(+); ibreak;}
-        case OP_SUB:{BINARY_OP(-); ibreak;}
-        case OP_MUL:{BINARY_OP(*); ibreak;}
-        case OP_DIV:{BINARY_OP(/); ibreak;}
+        case OP_ADD:{BINARY_OP(DNUMBER_VAL, +); ibreak;}
+        case OP_SUB:{BINARY_OP(DNUMBER_VAL, -); ibreak;}
+        case OP_MUL:{BINARY_OP(DNUMBER_VAL, *); ibreak;}
+        case OP_DIV:{BINARY_OP(DNUMBER_VAL, /); ibreak;}
         case OP_NEG:{
             ido_uint32 r = DEC_REGISTER_DEST(i);
             Value v = GET_CONSTANT(AS_INUMBER(tvm->registers[r]));
@@ -132,6 +154,68 @@ static InterpretResult runVM(TVM* tvm){
             setLastRegisterResult(tvm, INVALID_REGISTER);
             ibreak;
         }
+        case OP_NOT:{
+            ido_uint32 r = DEC_REGISTER_DEST(i);
+            Value v = BOOL_VAL(isFalsey(tvm->registers[r]));
+            tvm->registers[r] = v;
+            printValue(tvm->registers[r]);
+            ibreak;
+        }
+        case OP_GREATER:{BINARY_OP(BOOL_VAL, >); ibreak;}
+        case OP_LESS:{BINARY_OP(BOOL_VAL, <); ibreak;}
+
+        case OP_GREATER_EQUAL:{
+            ido_uint32 rD = DEC_REGISTER_DEST(i);
+            
+            Value rA;
+            GET_REGISTER_VALUE(rA, tvm->registers[DEC_REGISTER_RA(i)]);
+            Value rB;
+            GET_REGISTER_VALUE(rB, tvm->registers[DEC_REGISTER_RB(i)]);
+
+            tvm->registers[rD] = BOOL_VAL(valuesGreaterEqual(rA, rB));
+
+            // setLastRegisterResult(tvm, INVALID_REGISTER);
+            ibreak;
+        }
+        case OP_LESS_EQUAL:{
+            ido_uint32 rD = DEC_REGISTER_DEST(i);
+            
+            Value rA;
+            GET_REGISTER_VALUE(rA, tvm->registers[DEC_REGISTER_RA(i)]);
+            Value rB;
+            GET_REGISTER_VALUE(rB, tvm->registers[DEC_REGISTER_RB(i)]);
+
+            tvm->registers[rD] = BOOL_VAL(valuesLessEqual(rA, rB));
+
+            // setLastRegisterResult(tvm, INVALID_REGISTER);
+            ibreak;
+        }
+        case OP_EQUAL:{
+            ido_uint32 rD = DEC_REGISTER_DEST(i);
+            
+            Value rA;
+            GET_REGISTER_VALUE(rA, tvm->registers[DEC_REGISTER_RA(i)]);
+            Value rB;
+            GET_REGISTER_VALUE(rB, tvm->registers[DEC_REGISTER_RB(i)]);
+
+            tvm->registers[rD] = BOOL_VAL(valuesEqual(rA, rB));
+            printf("R%i\n", rD);
+            // setLastRegisterResult(tvm, INVALID_REGISTER);
+            ibreak;
+        }
+        case OP_BANG_EQUAL:{
+            ido_uint32 rD = DEC_REGISTER_DEST(i);
+            
+            Value rA;
+            GET_REGISTER_VALUE(rA, tvm->registers[DEC_REGISTER_RA(i)]);
+            Value rB;
+            GET_REGISTER_VALUE(rB, tvm->registers[DEC_REGISTER_RB(i)]);
+
+            tvm->registers[rD] = BOOL_VAL(valuesNotEqual(rA, rB));
+
+            // setLastRegisterResult(tvm, INVALID_REGISTER);
+            ibreak;
+        }
         case OP_RETURN:{
             return INTERPRET_OK;
             ibreak;
@@ -147,6 +231,9 @@ static InterpretResult runVM(TVM* tvm){
     }
 
     #undef ibreak
+    #undef GET_CONSTANT
+    #undef BINARY_OP
+    #undef GET_REGISTER_VALUE
 }
 
 InterpretResult interpret(TVM* tvm, const char* source){

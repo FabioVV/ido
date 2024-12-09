@@ -126,13 +126,23 @@ static void unary(Parser *p, Scanner *sc){
     TokenType opType = p->previous.type;
     parsePrecedence(p, sc, PREC_UNARY);
 
+    if(p->tvm->last_allocated_register == -1){ // TODO: very hacky. If there is not last allocated it means the user
+        return;                                // has entered something like ! or - withou a proceeding operator
+    }                                          // it should have stopped before, i dont know how it got here
+
     switch (opType)
     {
     case T_MINUS: 
         writeToProgram(currentProgram(), ENC_NEG(getLastAllocatedRegister(p->tvm)), p->previous.line);
         break;
+    case T_BANG:
+        writeToProgram(currentProgram(), ENC_NOT(getLastAllocatedRegister(p->tvm)), p->previous.line);
+        break;
     default: return;
     }
+
+    // setLastRegisterResult(p->tvm, getLastAllocatedRegister(p->tvm));
+
 }
 
 static void expression(Parser *p, Scanner *sc){
@@ -154,9 +164,26 @@ static void binary(Parser *p, Scanner *sc){
     ido_uint32 rightR = getLastAllocatedRegister(p->tvm);
     ido_uint32 resultR = allocR(p->tvm);
 
-
     switch (opType)
     {
+    case T_BANG_EQUAL: 
+        writeToProgram(currentProgram(), ENC_BANG_EQUAL(resultR, leftR, rightR), p->previous.line);
+        break;
+    case T_EQUAL_EQUAL: 
+        writeToProgram(currentProgram(), ENC_EQUAL(resultR, leftR, rightR), p->previous.line);
+        break;
+    case T_GREATER: 
+        writeToProgram(currentProgram(), ENC_GREATER(resultR, leftR, rightR), p->previous.line);
+        break;
+    case T_LESS: 
+        writeToProgram(currentProgram(), ENC_LESS(resultR, leftR, rightR), p->previous.line);
+        break;
+    case T_LESS_EQUAL: 
+        writeToProgram(currentProgram(), ENC_LESS_EQUAL(resultR, leftR, rightR), p->previous.line);
+        break;
+    case T_GREATER_EQUAL: 
+        writeToProgram(currentProgram(), ENC_GREATER_EQUAL(resultR, leftR, rightR), p->previous.line);
+        break;
     case T_PLUS:
         writeToProgram(currentProgram(), ENC_ADD(resultR, leftR, rightR), p->previous.line);
         break;
@@ -180,14 +207,13 @@ static void binary(Parser *p, Scanner *sc){
 
 static void literal(Parser *p, Scanner *sc){
     ido_uint32 resultR = allocR(p->tvm);
-
     switch (p->previous.type) {
         case T_TRUE:  writeToProgram(currentProgram(), ENC_TRUE(resultR), p->previous.line); break;
         case T_FALSE: writeToProgram(currentProgram(), ENC_FALSE(resultR), p->previous.line); break;
         case T_NIL:   writeToProgram(currentProgram(), ENC_NIL(resultR), p->previous.line); break;
     }
 
-    freeR(p->tvm, resultR); // is it necessary?
+    // freeR(p->tvm, resultR); // is it necessary?
     setLastRegisterResult(p->tvm, resultR);
     setLastAllocatedRegister(p->tvm, resultR);
 }
@@ -204,14 +230,14 @@ ParseRule rules[] = {
   [T_SEMICOLON]     = {NULL,     NULL,   PREC_NONE},
   [T_SLASH]         = {NULL,     binary, PREC_FACTOR},
   [T_STAR]          = {NULL,     binary, PREC_FACTOR},
-  [T_BANG]          = {NULL,     NULL,   PREC_NONE},
-  [T_BANG_EQUAL]    = {NULL,     NULL,   PREC_NONE},
+  [T_BANG]          = {unary,     NULL,  PREC_NONE},
+  [T_BANG_EQUAL]    = {NULL,     binary, PREC_EQUALITY},
   [T_EQUAL]         = {NULL,     NULL,   PREC_NONE},
-  [T_EQUAL_EQUAL]   = {NULL,     NULL,   PREC_NONE},
-  [T_GREATER]       = {NULL,     NULL,   PREC_NONE},
-  [T_GREATER_EQUAL] = {NULL,     NULL,   PREC_NONE},
-  [T_LESS]          = {NULL,     NULL,   PREC_NONE},
-  [T_LESS_EQUAL]    = {NULL,     NULL,   PREC_NONE},
+  [T_EQUAL_EQUAL]   = {NULL,     binary, PREC_EQUALITY},
+  [T_GREATER]       = {NULL,     binary, PREC_COMPARISON},
+  [T_GREATER_EQUAL] = {NULL,     binary, PREC_COMPARISON},
+  [T_LESS]          = {NULL,     binary, PREC_COMPARISON},
+  [T_LESS_EQUAL]    = {NULL,     binary, PREC_COMPARISON},
   [T_IDEN]          = {NULL,     NULL,   PREC_NONE},
   [T_STRING]        = {NULL,     NULL,   PREC_NONE},
   [T_FLOAT]         = {number,   NULL,   PREC_NONE},
