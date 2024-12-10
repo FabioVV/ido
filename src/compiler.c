@@ -162,10 +162,10 @@ static void binary(Parser *p, Scanner *sc){
     TokenType opType = p->previous.type;
     ParseRule* rule = getRule(opType);
 
-    ido_uint32 leftR = (getLastRegisterResult(p->tvm) != -1) ? getLastRegisterResult(p->tvm) : getLastAllocatedRegister(p->tvm);
+    ido_uint32 leftR = (getLastRegisterResult(p->tvm) != INVALID_REGISTER) ? getLastRegisterResult(p->tvm) : getLastAllocatedRegister(p->tvm);
     parsePrecedence(p, sc, (Precedence)rule->precedence+1);
-
     ido_uint32 rightR = getLastAllocatedRegister(p->tvm);
+    
     ido_uint32 resultR = allocR(p->tvm);
 
     switch (opType)
@@ -205,7 +205,7 @@ static void binary(Parser *p, Scanner *sc){
 
     freeR(p->tvm, leftR);
     freeR(p->tvm, rightR);
-    setLastRegisterResult(p->tvm, resultR);
+    // setLastRegisterResult(p->tvm, resultR);
     setLastAllocatedRegister(p->tvm, resultR);
 }
 
@@ -217,8 +217,9 @@ static void literal(Parser *p, Scanner *sc){
         case T_NIL:   writeToProgram(currentProgram(), ENC_NIL(resultR), p->previous.line); break;
     }
 
-    setLastRegisterResult(p->tvm, resultR);
+    // setLastRegisterResult(p->tvm, resultR);
     setLastAllocatedRegister(p->tvm, resultR);
+    freeR(p->tvm, resultR);
 }
 
 ParseRule rules[] = {

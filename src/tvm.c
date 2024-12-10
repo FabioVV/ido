@@ -122,8 +122,10 @@ static InterpretResult runVM(TVM* tvm){
     #define BINARY_OP(vType, op) \
         do { \
             ido_uint32 rD = DEC_REGISTER_DEST(i);\
-            Value rA = !IS_DNUMBER(tvm->registers[DEC_REGISTER_RA(i)]) ? GET_CONSTANT(AS_INUMBER(tvm->registers[DEC_REGISTER_RA(i)])): tvm->registers[DEC_REGISTER_RA(i)];\
-            Value rB = !IS_DNUMBER(tvm->registers[DEC_REGISTER_RB(i)]) ? GET_CONSTANT(AS_INUMBER(tvm->registers[DEC_REGISTER_RB(i)])): tvm->registers[DEC_REGISTER_RB(i)];\
+            Value rA;\
+            GET_REGISTER_VALUE(rA, tvm->registers[DEC_REGISTER_RA(i)]);\
+            Value rB;\
+            GET_REGISTER_VALUE(rB, tvm->registers[DEC_REGISTER_RB(i)]);\
             if(!IS_NUMBER(rA) || !IS_NUMBER(rB)){\
                 runtimeErr(tvm, "matherr: operands must be numbers");\
                 return INTERPRET_RUNTIME_ERROR;\
@@ -211,7 +213,7 @@ static InterpretResult runVM(TVM* tvm){
 
             tvm->registers[rD] = BOOL_VAL(valuesGreaterEqual(rA, rB));
 
-            // setLastRegisterResult(tvm, INVALID_REGISTER);
+            setLastRegisterResult(tvm, INVALID_REGISTER);
             ibreak;
         }
         case OP_LESS_EQUAL:{
@@ -224,7 +226,7 @@ static InterpretResult runVM(TVM* tvm){
 
             tvm->registers[rD] = BOOL_VAL(valuesLessEqual(rA, rB));
 
-            // setLastRegisterResult(tvm, INVALID_REGISTER);
+            setLastRegisterResult(tvm, INVALID_REGISTER);
             ibreak;
         }
         case OP_EQUAL:{
@@ -237,7 +239,7 @@ static InterpretResult runVM(TVM* tvm){
 
             tvm->registers[rD] = BOOL_VAL(valuesEqual(rA, rB));
             printf("R%i\n", rD);
-            // setLastRegisterResult(tvm, INVALID_REGISTER);
+            setLastRegisterResult(tvm, INVALID_REGISTER);
             ibreak;
         }
         case OP_BANG_EQUAL:{
@@ -250,7 +252,7 @@ static InterpretResult runVM(TVM* tvm){
 
             tvm->registers[rD] = BOOL_VAL(valuesNotEqual(rA, rB));
 
-            // setLastRegisterResult(tvm, INVALID_REGISTER);
+            setLastRegisterResult(tvm, INVALID_REGISTER);
             ibreak;
         }
         case OP_RETURN:{
