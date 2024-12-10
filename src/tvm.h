@@ -31,6 +31,8 @@ typedef struct{
 
   Program* program; 
   ido_uint32* pc;
+
+  Obj* objects;
 } TVM;
 
 void initVM(TVM* tvm);

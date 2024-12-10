@@ -8,7 +8,7 @@
 #include "token.h"
 #include "value.h"
 #include "instruction.h"
-
+#include "object.h"
 
 static ParseRule* getRule(TokenType t);
 static void parsePrecedence(Parser *p, Scanner *sc, Precedence prec);
@@ -122,12 +122,16 @@ static void number(Parser *p, Scanner *sc){
     emitConstant(p, v);
 }
 
+static void string(Parser *p, Scanner *sc){ // TODO: Translate stuff like \n here
+    emitConstant(p, OBJ_VAL(copyString(p->previous.start + 1, p->previous.length - 2)));
+}
+
 static void unary(Parser *p, Scanner *sc){
     TokenType opType = p->previous.type;
     parsePrecedence(p, sc, PREC_UNARY);
 
     if(p->tvm->last_allocated_register == -1){ // TODO: very hacky. If there is not last allocated it means the user
-        return;                                // has entered something like ! or - withou a proceeding operator
+        return;                                // has entered something like ! or - without a proceeding operator
     }                                          // it should have stopped before, i dont know how it got here
 
     switch (opType)
@@ -213,7 +217,6 @@ static void literal(Parser *p, Scanner *sc){
         case T_NIL:   writeToProgram(currentProgram(), ENC_NIL(resultR), p->previous.line); break;
     }
 
-    // freeR(p->tvm, resultR); // is it necessary?
     setLastRegisterResult(p->tvm, resultR);
     setLastAllocatedRegister(p->tvm, resultR);
 }
@@ -239,7 +242,7 @@ ParseRule rules[] = {
   [T_LESS]          = {NULL,     binary, PREC_COMPARISON},
   [T_LESS_EQUAL]    = {NULL,     binary, PREC_COMPARISON},
   [T_IDEN]          = {NULL,     NULL,   PREC_NONE},
-  [T_STRING]        = {NULL,     NULL,   PREC_NONE},
+  [T_STRING]        = {string,   NULL,   PREC_NONE},
   [T_FLOAT]         = {number,   NULL,   PREC_NONE},
   [T_INT]           = {number,   NULL,   PREC_NONE},
   [T_AND]           = {NULL,     NULL,   PREC_NONE},

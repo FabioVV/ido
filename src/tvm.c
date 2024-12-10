@@ -4,11 +4,14 @@
 
 #include <stdarg.h>
 #include <stdio.h>
+#include <string.h>
 #include "common.h"
 #include "tvm.h"
 #include "instruction.h"
 #include "compiler.h"
 #include "value.h"
+#include "object.h"
+#include "memory.h"
 
 
 void initVM(TVM* tvm){
@@ -21,6 +24,7 @@ void initVM(TVM* tvm){
     tvm->last_result_register = INVALID_REGISTER; // Initialize with an invalid register
     tvm->free_register_count = REGISTERS_NUM;
     tvm->pc = 0;
+    tvm->objects = NULL;
 }
 
 void freeVM(TVM* tvm){
@@ -61,6 +65,20 @@ void setLastRegisterResult(TVM* tvm, ido_uint32 r){
 
 static bool isFalsey(Value v){
     return IS_NIL(v) || (IS_BOOL(v) && !AS_BOOL(v));
+}
+
+static inline void concatenate(TVM* tvm, Value rA, Value rB, ido_uint32 dstR){
+    ObjString* b = AS_STRING(rB);
+    ObjString* a = AS_STRING(rA);
+
+    int length = a->length + b->length;
+    char* chars = ALLOCATE(char, length + 1);
+    memcpy(chars, a->chars, b->length);
+    memcpy(chars + a->length, b->chars, b->length);
+    chars[length] = '\0';
+
+    ObjString* result = takeString(chars, length);
+    tvm->registers[dstR] = OBJ_VAL(result);
 }
 
 ido_uint32 allocR(TVM* tvm){
@@ -126,7 +144,26 @@ static InterpretResult runVM(TVM* tvm){
             tvm->registers[r] = INUMBER_VAL(constantIndex);
             ibreak;
         }
-        case OP_ADD:{BINARY_OP(DNUMBER_VAL, +); ibreak;}
+        case OP_ADD:{
+            ido_uint32 rD = DEC_REGISTER_DEST(i);
+            Value rA;
+            GET_REGISTER_VALUE(rA, tvm->registers[DEC_REGISTER_RA(i)]);
+            Value rB;
+            GET_REGISTER_VALUE(rB, tvm->registers[DEC_REGISTER_RB(i)]);
+            
+            if(IS_STRING(rA) && IS_STRING(rB)){
+                concatenate(tvm, rA, rB, rD);
+            } else if(IS_NUMBER(rA) && !IS_NUMBER(rB)){
+                tvm->registers[rD] = DNUMBER_VAL(rA.as.dnumber + rB.as.dnumber);
+            } else {
+                runtimeErr(tvm, "operands must be either numbers or strings");
+                return INTERPRET_RUNTIME_ERROR;
+            }
+            
+            printValue(tvm->registers[rD]);
+            setLastRegisterResult(tvm, INVALID_REGISTER);
+            ibreak;
+        }
         case OP_SUB:{BINARY_OP(DNUMBER_VAL, -); ibreak;}
         case OP_MUL:{BINARY_OP(DNUMBER_VAL, *); ibreak;}
         case OP_DIV:{BINARY_OP(DNUMBER_VAL, /); ibreak;}
