@@ -123,7 +123,7 @@ static void number(Parser *p, Scanner *sc){
 }
 
 static void string(Parser *p, Scanner *sc){ // TODO: Translate stuff like \n here
-    emitConstant(p, OBJ_VAL(copyString(p->previous.start + 1, p->previous.length - 2)));
+    emitConstant(p, OBJ_VAL(copyString(p->tvm, p->previous.start + 1, p->previous.length - 2)));
 }
 
 static void unary(Parser *p, Scanner *sc){

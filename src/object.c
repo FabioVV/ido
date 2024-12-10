@@ -5,40 +5,43 @@
 #include "value.h"
 #include "tvm.h"
 
-#define ALLOCATE_OBJ(type, objectType) \
-    (type*)allocateObj(sizeof(type), objectType)\
+#define ALLOCATE_OBJ(tvm, type, objectType) \
+    (type*)allocateObj(tvm, sizeof(type), objectType)\
 
 
-static Obj* allocateObj(size_t size, ObjType type){
+static Obj* allocateObj(TVM* tvm, size_t size, ObjType type){
     Obj* object = (Obj*)reallocate(NULL, 0, size);
     object->type = type;
+
+    object->next = tvm->objects;
+    tvm->objects = object;
     
     return object;
 }
 
-static ObjString* allocateString(const char* chars, int length){
-    ObjString* string = ALLOCATE_OBJ(ObjString, OBJ_STRING);
+static ObjString* allocateString(TVM* tvm, char* chars, int length){
+    ObjString* string = ALLOCATE_OBJ(tvm, ObjString, OBJ_STRING);
     string->chars = chars;
     string->length = length;
     return string;
 }
 
-ObjString* takeString(char* chars, int length){
-    return allocateString(chars, length);
+ObjString* takeString(TVM* tvm, char* chars, int length){
+    return allocateString(tvm, chars, length);
 }
 
-ObjString* copyString(const char* chars, int length){
+ObjString* copyString(TVM* tvm, const char* chars, int length){
     char* heapChars = ALLOCATE(char, length+1);
     memcpy(heapChars, chars, length);
     heapChars[length] = '\0';
-    return allocateString(heapChars, length);
+    return allocateString(tvm, heapChars, length);
 }
 
 void printObject(Value v){
     switch (OBJ_TYPE(v))
     {
     case OBJ_STRING:
-        printf("%s", AS_CSTRING(v));
+        printf("%s\n", AS_CSTRING(v));
         break;
     default: return;
     }

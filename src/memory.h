@@ -2,6 +2,7 @@
 #define H_MEMORY
 
 #include "common.h"
+#include "tvm.h"
 
 #define ALLOCATE(type, count) \
     (type*)reallocate(NULL, 0, sizeof(type) * count)
@@ -17,5 +18,6 @@
     (type*)reallocate(pointer, sizeof(type)*(oldCount), sizeof(type)*(newCount))
 
 void* reallocate(void* pointer, size_t oldSize, size_t newSize);
+void freeObjects(TVM* tvm);
 
 #endif

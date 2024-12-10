@@ -21,7 +21,7 @@ typedef struct {
         bool boolean;
         long inumber;
         double dnumber;
-        Obj* obj
+        Obj* obj;
     } as;
 } Value;
 

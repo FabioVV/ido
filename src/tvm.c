@@ -73,11 +73,11 @@ static inline void concatenate(TVM* tvm, Value rA, Value rB, ido_uint32 dstR){
 
     int length = a->length + b->length;
     char* chars = ALLOCATE(char, length + 1);
-    memcpy(chars, a->chars, b->length);
+    memcpy(chars, a->chars, a->length);
     memcpy(chars + a->length, b->chars, b->length);
     chars[length] = '\0';
 
-    ObjString* result = takeString(chars, length);
+    ObjString* result = takeString(tvm, chars, length);
     tvm->registers[dstR] = OBJ_VAL(result);
 }
 
@@ -153,10 +153,10 @@ static InterpretResult runVM(TVM* tvm){
             
             if(IS_STRING(rA) && IS_STRING(rB)){
                 concatenate(tvm, rA, rB, rD);
-            } else if(IS_NUMBER(rA) && !IS_NUMBER(rB)){
+            } else if(IS_NUMBER(rA) && IS_NUMBER(rB)){
                 tvm->registers[rD] = DNUMBER_VAL(rA.as.dnumber + rB.as.dnumber);
             } else {
-                runtimeErr(tvm, "operands must be either numbers or strings");
+                runtimeErr(tvm, "error: operands must be either numbers or strings");
                 return INTERPRET_RUNTIME_ERROR;
             }
             
