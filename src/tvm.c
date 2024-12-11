@@ -25,10 +25,11 @@ void initVM(TVM* tvm){
     tvm->free_register_count = REGISTERS_NUM;
     tvm->pc = 0;
     tvm->objects = NULL;
+    initTable(&tvm->strings);
 }
 
 void freeVM(TVM* tvm){
-
+    freeTable(&tvm->strings);
 }
 
 static void runtimeErr(TVM* tvm, const char* format, ...){

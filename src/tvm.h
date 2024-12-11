@@ -1,8 +1,9 @@
 #ifndef H_TANIAVM
 #define H_TANIAVM
 
+#include <stdio.h>
 #include "instruction.h"
-#include "stdio.h"
+#include "table.h"
 
 #define REGISTERS_NUM 256
 #define INVALID_REGISTER ((ido_uint32)-1)
@@ -31,7 +32,7 @@ typedef struct{
 
   Program* program; 
   ido_uint32* pc;
-
+  Table strings;
   Obj* objects;
 } TVM;
 
