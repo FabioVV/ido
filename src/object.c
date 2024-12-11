@@ -55,11 +55,11 @@ static uint32_t hash(const char* key, uint32_t length, uint32_t seed){
         case 2: k ^= (tail[1] << 8);
 
         case 1:
-        k ^= tail[0];
-        k *= c1;
-        k = (k << r1) | (k >> (32 - r1));
-        k *= c2;
-        h ^= k;
+            k ^= tail[0];
+            k *= c1;
+            k = (k << r1) | (k >> (32 - r1));
+            k *= c2;
+            h ^= k;
     }
 
     h ^= length;

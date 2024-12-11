@@ -261,7 +261,9 @@ static InterpretResult runVM(TVM* tvm){
         }
         case OP_RETURN:{
             printf("Last RD result: ");
-            printValue(tvm->registers[getLastAllocatedRegister(tvm)]);
+            Value rA;
+            GET_REGISTER_VALUE(rA, tvm->registers[getLastAllocatedRegister(tvm)]);
+            printValue(rA);
             printf("Registers after return: %i\n", tvm->free_register_count);
             return INTERPRET_OK;
             ibreak;

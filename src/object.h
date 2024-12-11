@@ -3,6 +3,7 @@
 
 #include "common.h"
 #include "value.h"
+#include "tvm.h"
 
 #define OBJ_TYPE(value)    (AS_OBJ(value)->type)
 #define IS_STRING(value)   isObjType(value, OBJ_STRING)
