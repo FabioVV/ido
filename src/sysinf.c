@@ -48,7 +48,7 @@ void sys_info_print_repl(){
     printf(" %s", buf.release); 
     printf(" %s)", buf.machine);
   } else {
-    printf("Unix-like system",);
+    printf("Unix-like system");
   }
 #endif
   time_t t;
