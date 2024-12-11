@@ -96,6 +96,7 @@ static void emitConstant(Parser *p, Value v){
 
     setLastAllocatedRegister(p->tvm, r);
     writeToProgram(currentProgram(), ENC_CONSTANT(constantIndex, r), p->previous.line);
+
 }
 
 static void parsePrecedence(Parser *p, Scanner *sc, Precedence prec){
@@ -145,7 +146,7 @@ static void unary(Parser *p, Scanner *sc){
     default: return;
     }
 
-    // setLastRegisterResult(p->tvm, getLastAllocatedRegister(p->tvm));
+    setLastAllocatedRegister(p->tvm, getLastAllocatedRegister(p->tvm));
 
 }
 
@@ -203,10 +204,9 @@ static void binary(Parser *p, Scanner *sc){
     default: return;
     }
 
-    freeR(p->tvm, leftR);
-    freeR(p->tvm, rightR);
-    // setLastRegisterResult(p->tvm, resultR);
+
     setLastAllocatedRegister(p->tvm, resultR);
+
 }
 
 static void literal(Parser *p, Scanner *sc){
@@ -215,11 +215,12 @@ static void literal(Parser *p, Scanner *sc){
         case T_TRUE:  writeToProgram(currentProgram(), ENC_TRUE(resultR), p->previous.line); break;
         case T_FALSE: writeToProgram(currentProgram(), ENC_FALSE(resultR), p->previous.line); break;
         case T_NIL:   writeToProgram(currentProgram(), ENC_NIL(resultR), p->previous.line); break;
+        default: return;
     }
 
     // setLastRegisterResult(p->tvm, resultR);
     setLastAllocatedRegister(p->tvm, resultR);
-    freeR(p->tvm, resultR);
+
 }
 
 ParseRule rules[] = {
