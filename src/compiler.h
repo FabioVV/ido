@@ -29,7 +29,7 @@ typedef struct {
     TVM* tvm;
 } Parser;
 
-typedef void (*ParseFn)(Parser *p, Scanner *sc);
+typedef void (*ParseFn)(Parser *p, Scanner *sc, bool canAssign);
 
 typedef struct {
     ParseFn prefix;

@@ -13,6 +13,7 @@ typedef enum {
 
     OP_DEFINE_GLOBAL,
     OP_GET_GLOBAL,
+    OP_SET_GLOBAL,
 
     OP_ADD,
     OP_SUB,
@@ -79,6 +80,9 @@ typedef enum {
 
 #define ENC_DEFINE_GLOBAL(cIndex)  (OP_DEFINE_GLOBAL << 26) | (cIndex << 18)
 #define ENC_GET_GLOBAL(cIndex, r)       (OP_GET_GLOBAL << 26)  | (r << 18) | (cIndex & 0x1FFFF)
+#define ENC_SET_GLOBAL(cIndex, r)       (OP_SET_GLOBAL << 26)  | (r << 18) | (cIndex & 0x1FFFF)
+
+
 #define ENC_PRINT                      (OP_PRINT << 26) 
 #define ENC_RETURN                   (OP_RETURN << 26) 
 

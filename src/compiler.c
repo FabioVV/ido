@@ -123,12 +123,17 @@ static void parsePrecedence(Parser *p, Scanner *sc, Precedence prec){
         return;
     }
 
-    prefixRule(p, sc);
+    bool canAssign = prec  <= PREC_ASSIGNMENT;
+    prefixRule(p, sc, canAssign);
 
     while(prec <= getRule(p->current.type)->precedence){
         advance(p, sc);
         ParseFn infixRule = getRule(p->previous.type)->infix;
-        infixRule(p, sc);
+        infixRule(p, sc, canAssign);
+    }
+
+    if(canAssign && match(p, sc, T_EQUAL)){
+        error(p, "invalid assignment target");
     }
 }
 
@@ -145,28 +150,35 @@ static void defineVariable(Parser *p, ido_uint32 global){
     writeToProgram(currentProgram(), ENC_DEFINE_GLOBAL(global), p->previous.line);
 }
 
-static void number(Parser *p, Scanner *sc){
+static void number(Parser *p, Scanner *sc, bool canAssign){
     double value = strtod(p->previous.start, NULL);
     Value v = DNUMBER_VAL(value);
     emitConstant(p, v);
 }
 
-static void string(Parser *p, Scanner *sc){ // TODO: Translate stuff like \n here
+static void string(Parser *p, Scanner *sc, bool canAssign){ // TODO: Translate stuff like \n here
     emitConstant(p, OBJ_VAL(copyString(p->tvm, p->previous.start + 1, p->previous.length - 2)));
 }
 
-static void namedVariable(Parser *p, Token name){
+static void namedVariable(Parser *p, Scanner *sc, Token name, bool canAssign){
     ido_uint32 arg = identifierConstant(p, &name); // TODO: Check bits of encoding and return indexes fo better handling
     ido_uint32 resultR = allocR(p->tvm);
-    writeToProgram(currentProgram(), ENC_GET_GLOBAL(arg, resultR), p->previous.line);
-    setLastAllocatedRegister(p->tvm, resultR);
+
+    if(canAssign && match(p, sc, T_EQUAL)){
+        expression(p, sc);
+        writeToProgram(currentProgram(), ENC_SET_GLOBAL(arg, resultR), p->previous.line);
+    } else {
+        writeToProgram(currentProgram(), ENC_GET_GLOBAL(arg, resultR), p->previous.line);
+        setLastAllocatedRegister(p->tvm, resultR);
+    }
+
 }
 
-static void variable(Parser *p, Scanner *sc){
-    namedVariable(p, p->previous);
+static void variable(Parser *p, Scanner *sc, bool canAssign){
+    namedVariable(p, sc, p->previous, canAssign);
 }
 
-static void unary(Parser *p, Scanner *sc){
+static void unary(Parser *p, Scanner *sc, bool canAssign){
     TokenType opType = p->previous.type;
     parsePrecedence(p, sc, PREC_UNARY);
 
@@ -260,12 +272,12 @@ static void statement(Parser *p, Scanner *sc){
     }
 }
 
-static void inline grouping(Parser *p, Scanner *sc){
+static void inline grouping(Parser *p, Scanner *sc, bool canAssign){
     expression(p, sc);
     consume(p, sc, T_RIGHT_PAREN, "expect ')' after expression");
 }
 
-static void binary(Parser *p, Scanner *sc){
+static void binary(Parser *p, Scanner *sc, bool canAssign){
     TokenType opType = p->previous.type;
     ParseRule* rule = getRule(opType);
 
@@ -316,7 +328,7 @@ static void binary(Parser *p, Scanner *sc){
 
 }
 
-static void literal(Parser *p, Scanner *sc){
+static void literal(Parser *p, Scanner *sc, bool canAssign){
     ido_uint32 resultR = allocR(p->tvm);
 
     switch (p->previous.type) {

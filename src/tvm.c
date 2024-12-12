@@ -177,7 +177,21 @@ static InterpretResult runVM(TVM* tvm){
             }
             tvm->registers[rD] = v;
             ibreak;
-        }   
+        }  
+        case OP_SET_GLOBAL:{
+            ido_uint32 rD = DEC_REGISTER_DEST(i);
+            ido_uint32 constantIndex = DEC_CONSTANT_INDEX(i);
+            ObjString* name = READ_STRING(GET_CONSTANT(constantIndex));
+            Value v;
+            GET_REGISTER_VALUE(v, tvm->registers[getLastAllocatedRegister(tvm)]);
+
+            if(tableSet(&tvm->globals, name, v)){
+                tableDelete(&tvm->globals, name);
+                runtimeErr(tvm, "undefined var '%s'", name->chars);
+                return INTERPRET_RUNTIME_ERROR;
+            }
+            ibreak;
+        } 
         case OP_ADD:{
             ido_uint32 rD = DEC_REGISTER_DEST(i);
             Value rA;
