@@ -10,9 +10,12 @@
 #include "instruction.h"
 #include "object.h"
 
+// Some forward declarations
 static ParseRule* getRule(TokenType t);
 static void parsePrecedence(Parser *p, Scanner *sc, Precedence prec);
 static void expression(Parser *p, Scanner *sc);
+static void statement(Parser *p, Scanner *sc);
+static void declaration(Parser *p, Scanner *sc);
 
 Program* compilingProgram;
 
@@ -78,6 +81,16 @@ static void consume(Parser* p, Scanner* sc, TokenType type, const char* message)
     }
 
     errorAtCurrent(p, message);
+}
+
+static bool check(Parser* p, Scanner* sc, TokenType t){
+    return p->current.type == t;
+}
+
+static bool match(Parser* p, Scanner* sc, TokenType t){
+    if(!check(p, sc, t)) return false;
+    advance(p, sc);
+    return true;
 }
 
 static ido_uint32 createConstant(Parser* p, Value v){
@@ -154,6 +167,30 @@ static void expression(Parser *p, Scanner *sc){
     parsePrecedence(p, sc, PREC_ASSIGNMENT);
 }
 
+static void expressionStatement(Parser *p, Scanner *sc){
+    expression(p, sc);
+    consume(p, sc, T_SEMICOLON, "expect ';' after expression");
+    freeR(p->tvm, getLastAllocatedRegister(p->tvm));
+}
+
+static void printStatement(Parser *p, Scanner *sc){
+    expression(p, sc);
+    consume(p, sc, T_SEMICOLON, "expect ';' after value");
+    writeToProgram(currentProgram(), ENC_PRINT, p->previous.line);
+}
+
+static void declaration(Parser *p, Scanner *sc){
+    statement(p, sc);
+}
+
+static void statement(Parser *p, Scanner *sc){
+    if(match(p, sc, T_PRINT)){
+        printStatement(p, sc);
+    } else {
+        expressionStatement(p, sc);
+    }
+}
+
 static void inline grouping(Parser *p, Scanner *sc){
     expression(p, sc);
     consume(p, sc, T_RIGHT_PAREN, "expect ')' after expression");
@@ -163,7 +200,7 @@ static void binary(Parser *p, Scanner *sc){
     TokenType opType = p->previous.type;
     ParseRule* rule = getRule(opType);
 
-    ido_uint32 leftR = (getLastRegisterResult(p->tvm) != INVALID_REGISTER) ? getLastRegisterResult(p->tvm) : getLastAllocatedRegister(p->tvm);
+    ido_uint32 leftR = getLastAllocatedRegister(p->tvm);
     parsePrecedence(p, sc, (Precedence)rule->precedence+1);
     ido_uint32 rightR = getLastAllocatedRegister(p->tvm);
     
@@ -212,7 +249,7 @@ static void binary(Parser *p, Scanner *sc){
 
 static void literal(Parser *p, Scanner *sc){
     ido_uint32 resultR = allocR(p->tvm);
-    
+
     switch (p->previous.type) {
         case T_TRUE:  writeToProgram(currentProgram(), ENC_TRUE(resultR), p->previous.line); break;
         case T_FALSE: writeToProgram(currentProgram(), ENC_FALSE(resultR), p->previous.line); break;
@@ -278,8 +315,9 @@ bool compile(const char* source, Program* program, TVM* tvm){
     p->hadError = false;
 
     advance(p, sc);
-    expression(p, sc);
-    consume(p, sc, T_EOF, "expect end of expression");
+    while(!match(p, sc, T_EOF)){
+        declaration(p, sc);
+    }
 
     endCompilation(p);
     return !p->hadError;

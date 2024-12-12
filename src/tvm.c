@@ -104,21 +104,22 @@ static InterpretResult runVM(TVM* tvm){
     #define GET_CONSTANT(index) (tvm->program->constants.values[index])
 
     #define GET_REGISTER_VALUE(target, source)\
-    do {\
-        switch (GET_TYPE(source)) {\
-            case VAL_INUMBER:\
-                target = GET_CONSTANT(AS_INUMBER(source));\
-                break;\
-            case VAL_NIL:\
-                target = NIL_VAL();\
-                break;\
-            case VAL_DNUMBER:\
-            case VAL_BOOL:\
-                target = source;\
-                break;\
-            default: target = NIL_VAL();\
-        }\
-    } while (false)
+        do {\
+            switch (GET_TYPE(source)) {\
+                case VAL_INUMBER:\
+                    target = GET_CONSTANT(AS_INUMBER(source));\
+                    break;\
+                case VAL_NIL:\
+                    target = NIL_VAL();\
+                    break;\
+                case VAL_OBJ:\
+                case VAL_DNUMBER:\
+                case VAL_BOOL:\
+                    target = source;\
+                    break;\
+                default: target = NIL_VAL();\
+            }\
+        } while (false)
     
     #define BINARY_OP(vType, op) \
         do { \
@@ -132,7 +133,6 @@ static InterpretResult runVM(TVM* tvm){
                 return INTERPRET_RUNTIME_ERROR;\
             }\
             tvm->registers[rD] = vType(rA.as.dnumber op rB.as.dnumber);\
-            printValue(tvm->registers[rD]);\
         } while(false)\
 
     for(;;){
@@ -144,6 +144,14 @@ static InterpretResult runVM(TVM* tvm){
             ido_uint32 r = DEC_REGISTER_DEST(i);
             ido_uint32 constantIndex = DEC_CONSTANT_INDEX(i);
             tvm->registers[r] = INUMBER_VAL(constantIndex);
+            ibreak;
+        }
+        case OP_PRINT:{
+            // printf("Last RD result: ");
+            Value v;
+            GET_REGISTER_VALUE(v, tvm->registers[getLastAllocatedRegister(tvm)]);
+            printValue(v);
+            // printf("Registers after return: %i\n", tvm->free_register_count);
             ibreak;
         }
         case OP_ADD:{
@@ -162,7 +170,6 @@ static InterpretResult runVM(TVM* tvm){
                 return INTERPRET_RUNTIME_ERROR;
             }
 
-            printValue(tvm->registers[rD]);
             ibreak;
         }
         case OP_SUB:{BINARY_OP(DNUMBER_VAL, -); ibreak;}
@@ -193,7 +200,6 @@ static InterpretResult runVM(TVM* tvm){
             ido_uint32 r = DEC_REGISTER_DEST(i);
             Value v = BOOL_VAL(isFalsey(tvm->registers[r]));
             tvm->registers[r] = v;
-            printValue(tvm->registers[r]);
             ibreak;
         }
         case OP_GREATER:{BINARY_OP(BOOL_VAL, >); ibreak;}
@@ -247,11 +253,6 @@ static InterpretResult runVM(TVM* tvm){
             ibreak;
         }
         case OP_RETURN:{
-            printf("Last RD result: ");
-            Value v;
-            GET_REGISTER_VALUE(v, tvm->registers[getLastAllocatedRegister(tvm)]);
-            printValue(v);
-            printf("Registers after return: %i\n", tvm->free_register_count);
             return INTERPRET_OK;
             ibreak;
         }
