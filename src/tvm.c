@@ -26,10 +26,12 @@ void initVM(TVM* tvm){
     tvm->pc = 0;
     tvm->objects = NULL;
     initTable(&tvm->strings);
+    initTable(&tvm->globals);
 }
 
 void freeVM(TVM* tvm){
     freeTable(&tvm->strings);
+    freeTable(&tvm->globals);
 }
 
 static void runtimeErr(TVM* tvm, const char* format, ...){
@@ -102,7 +104,8 @@ static InterpretResult runVM(TVM* tvm){
     #define ibreak break
 
     #define GET_CONSTANT(index) (tvm->program->constants.values[index])
-
+    #define READ_STRING(value) AS_STRING(value)
+    
     #define GET_REGISTER_VALUE(target, source)\
         do {\
             switch (GET_TYPE(source)) {\
@@ -152,6 +155,21 @@ static InterpretResult runVM(TVM* tvm){
             GET_REGISTER_VALUE(v, tvm->registers[getLastAllocatedRegister(tvm)]);
             printValue(v);
             // printf("Registers after return: %i\n", tvm->free_register_count);
+            ibreak;
+        }
+        case OP_DEFINE_GLOBAL:{
+            ido_uint32 rD = DEC_REGISTER_DEST(i);
+            ObjString* name = READ_STRING(GET_CONSTANT(rD));
+            Value v;
+            GET_REGISTER_VALUE(v, tvm->registers[getLastAllocatedRegister(tvm)]);
+            tableSet(&tvm->globals, name, v);
+
+            // Value test;
+            // tableGet(&tvm->globals, name, &test);
+            // printf("Registers: %i\n", tvm->free_register_count);
+            // printf("Value in table: ");
+            // printValue(test);
+
             ibreak;
         }
         case OP_ADD:{
@@ -268,6 +286,7 @@ static InterpretResult runVM(TVM* tvm){
 
     #undef ibreak
     #undef GET_CONSTANT
+    #undef READ_STRING
     #undef BINARY_OP
     #undef GET_REGISTER_VALUE
 }

@@ -103,13 +103,13 @@ static ido_uint32 createConstant(Parser* p, Value v){
     return constantIndex;
 }
 
-static void emitConstant(Parser *p, Value v){
+static ido_uint32 emitConstant(Parser *p, Value v){
     ido_uint32 constantIndex = createConstant(p, v);
-    ido_uint32 r = allocR(p->tvm); // Allocate a free register
+    ido_uint32 r = allocR(p->tvm); 
 
     setLastAllocatedRegister(p->tvm, r);
     writeToProgram(currentProgram(), ENC_CONSTANT(constantIndex, r), p->previous.line);
-
+    return constantIndex;
 }
 
 static void parsePrecedence(Parser *p, Scanner *sc, Precedence prec){
@@ -128,6 +128,19 @@ static void parsePrecedence(Parser *p, Scanner *sc, Precedence prec){
         ParseFn infixRule = getRule(p->previous.type)->infix;
         infixRule(p, sc);
     }
+}
+
+static ido_uint32 identifierConstant(Parser *p, Token* name){
+    return emitConstant(p, OBJ_VAL(copyString(p->tvm, name->start, name->length)));
+}
+
+static ido_uint32 parseVariable(Parser *p, Scanner *sc, const char* errorMessage){
+    consume(p, sc, T_IDEN, errorMessage);
+    return identifierConstant(p, &p->previous);
+}
+
+static void defineVariable(Parser *p, ido_uint32 global){
+    writeToProgram(currentProgram(), ENC_DEFINE_GLOBAL(global), p->previous.line);
 }
 
 static void number(Parser *p, Scanner *sc){
@@ -167,6 +180,22 @@ static void expression(Parser *p, Scanner *sc){
     parsePrecedence(p, sc, PREC_ASSIGNMENT);
 }
 
+static void varDeclaration(Parser *p, Scanner *sc){
+    ido_uint32 global = parseVariable(p, sc, "expect var name"); // Get the constant index of the string name
+    if(match(p, sc, T_EQUAL)){
+        expression(p,sc); // its going to set a register to the initial val of the var eg: var a = "test";  the string "test" being the initial val here
+    }  else {
+        ido_uint32 resultR = allocR(p->tvm); 
+        writeToProgram(currentProgram(), ENC_NIL(resultR), p->previous.line); // else it does not have a initial value, allocate a nil instead
+        setLastAllocatedRegister(p->tvm, resultR);
+    }
+    consume(p, sc, T_SEMICOLON, "expect ';' after var declaration");
+    defineVariable(p, global);
+    freeR(p->tvm, getLastAllocatedRegister(p->tvm));
+}
+
+
+
 static void expressionStatement(Parser *p, Scanner *sc){
     expression(p, sc);
     consume(p, sc, T_SEMICOLON, "expect ';' after expression");
@@ -179,8 +208,35 @@ static void printStatement(Parser *p, Scanner *sc){
     writeToProgram(currentProgram(), ENC_PRINT, p->previous.line);
 }
 
+static void sync(Parser *p, Scanner *sc){
+    p->panicMode = false;
+    
+    while(p->current.type != T_EOF){
+        if(p->previous.type == T_SEMICOLON) return;
+        switch (p->current.type)
+        {
+        case T_FN:
+        case T_VAR:
+        case T_FOR:
+        case T_IF:
+        case T_WHILE:
+        case T_PRINT:
+        case T_RETURN:
+            return;
+        
+        default:;
+        }
+        advance(p, sc);
+    }
+}
+
 static void declaration(Parser *p, Scanner *sc){
-    statement(p, sc);
+    if(match(p, sc, T_VAR)){
+        varDeclaration(p, sc);
+    } else {
+        statement(p, sc);
+    }
+    if(p->panicMode) sync(p, sc);
 }
 
 static void statement(Parser *p, Scanner *sc){

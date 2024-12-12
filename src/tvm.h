@@ -28,6 +28,7 @@ typedef struct{
   Program* program; 
   ido_uint32* pc;
   Table strings;
+  Table globals;
   Obj* objects;
 } TVM;
 

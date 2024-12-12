@@ -11,6 +11,8 @@ typedef enum {
 
     OP_PRINT,
 
+    OP_DEFINE_GLOBAL,
+
     OP_ADD,
     OP_SUB,
     OP_MUL,
@@ -64,7 +66,7 @@ typedef enum {
 
 #define ENC_TRUE(r)                  (OP_TRUE   << 26) | (r << 18)
 #define ENC_FALSE(r)                 (OP_FALSE  << 26) | (r << 18)
-#define ENC_NIL(r)                   (OP_NIL    << 26) | (r << 18)
+#define ENC_NIL(r)                     (OP_NIL    << 26) | (r << 18)
 
 #define ENC_NOT(r)                       (OP_NOT            << 26) | (r << 18)
 #define ENC_GREATER(dstr, ra, rb)        ((OP_GREATER       << 26) | ((dstr & 0xFF) << 18) | ((ra & 0xFF) << 10) | (rb))
@@ -73,6 +75,8 @@ typedef enum {
 #define ENC_LESS_EQUAL(dstr, ra, rb)     ((OP_LESS_EQUAL    << 26) | ((dstr & 0xFF) << 18) | ((ra & 0xFF) << 10) | (rb))
 #define ENC_EQUAL(dstr, ra, rb)          ((OP_EQUAL         << 26) | ((dstr & 0xFF) << 18) | ((ra & 0xFF) << 10) | (rb))
 #define ENC_BANG_EQUAL(dstr, ra, rb)     ((OP_BANG_EQUAL    << 26) | ((dstr & 0xFF) << 18) | ((ra & 0xFF) << 10) | (rb))
+
+#define ENC_DEFINE_GLOBAL(dstr)  (OP_DEFINE_GLOBAL << 26) | (dstr << 18)
 
 #define ENC_PRINT                      (OP_PRINT << 26) 
 #define ENC_RETURN                   (OP_RETURN << 26) 
