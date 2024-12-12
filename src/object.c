@@ -109,7 +109,6 @@ ObjString* copyString(TVM* tvm, const char* chars, int length){
     uint32_t h = HASH(chars, length);
 
     ObjString* interned = tableFindString(&tvm->strings, chars, length, h);
-                printf("teste");
 
     if(interned != NULL) return interned;
 

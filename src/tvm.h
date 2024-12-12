@@ -10,17 +10,12 @@
 #define IS_REGISTER_VALID(r) ((r) != INVALID_REGISTER)
 #define IS_REGISTER_FREE(r)  ((r) >= 0 && (r) < REGISTERS_NUM)
 
-#define REGISTERERR(msg, ...) \
-  do { \
-    fprintf(stderr, msg, ##__VA_ARGS__);\
-  }\
-  while(0) \
-
 typedef enum {
   INTERPRET_OK,
   INTERPRET_HALT,
   INTERPRET_COMPILE_ERROR,
-  INTERPRET_RUNTIME_ERROR
+  INTERPRET_RUNTIME_ERROR,
+  INTERPRET_REGISTER_ERROR,
 } InterpretResult;
 
 typedef struct{

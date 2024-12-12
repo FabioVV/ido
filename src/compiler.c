@@ -204,13 +204,15 @@ static void binary(Parser *p, Scanner *sc){
     default: return;
     }
 
-
+    freeR(p->tvm, leftR);
+    freeR(p->tvm, rightR);
     setLastAllocatedRegister(p->tvm, resultR);
 
 }
 
 static void literal(Parser *p, Scanner *sc){
     ido_uint32 resultR = allocR(p->tvm);
+    
     switch (p->previous.type) {
         case T_TRUE:  writeToProgram(currentProgram(), ENC_TRUE(resultR), p->previous.line); break;
         case T_FALSE: writeToProgram(currentProgram(), ENC_FALSE(resultR), p->previous.line); break;
@@ -218,7 +220,6 @@ static void literal(Parser *p, Scanner *sc){
         default: return;
     }
 
-    // setLastRegisterResult(p->tvm, resultR);
     setLastAllocatedRegister(p->tvm, resultR);
 
 }

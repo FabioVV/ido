@@ -133,10 +133,6 @@ static InterpretResult runVM(TVM* tvm){
             }\
             tvm->registers[rD] = vType(rA.as.dnumber op rB.as.dnumber);\
             printValue(tvm->registers[rD]);\
-            \
-            freeR(tvm, DEC_REGISTER_RA(i));\
-            freeR(tvm, DEC_REGISTER_RB(i));\
-            \
         } while(false)\
 
     for(;;){
@@ -165,9 +161,6 @@ static InterpretResult runVM(TVM* tvm){
                 runtimeErr(tvm, "error: operands must be either numbers or strings");
                 return INTERPRET_RUNTIME_ERROR;
             }
-            
-            freeR(tvm, DEC_REGISTER_RA(i));
-            freeR(tvm, DEC_REGISTER_RB(i));
 
             printValue(tvm->registers[rD]);
             ibreak;
@@ -205,7 +198,6 @@ static InterpretResult runVM(TVM* tvm){
         }
         case OP_GREATER:{BINARY_OP(BOOL_VAL, >); ibreak;}
         case OP_LESS:{BINARY_OP(BOOL_VAL, <); ibreak;}
-
         case OP_GREATER_EQUAL:{
             ido_uint32 rD = DEC_REGISTER_DEST(i);
             
@@ -216,8 +208,6 @@ static InterpretResult runVM(TVM* tvm){
 
             tvm->registers[rD] = BOOL_VAL(valuesGreaterEqual(rA, rB));
 
-            freeR(tvm, DEC_REGISTER_RA(i));
-            freeR(tvm, DEC_REGISTER_RB(i));
             ibreak;
         }
         case OP_LESS_EQUAL:{
@@ -229,8 +219,7 @@ static InterpretResult runVM(TVM* tvm){
             GET_REGISTER_VALUE(rB, tvm->registers[DEC_REGISTER_RB(i)]);
 
             tvm->registers[rD] = BOOL_VAL(valuesLessEqual(rA, rB));
-            freeR(tvm, DEC_REGISTER_RA(i));
-            freeR(tvm, DEC_REGISTER_RB(i));
+
             ibreak;
         }
         case OP_EQUAL:{
@@ -242,8 +231,7 @@ static InterpretResult runVM(TVM* tvm){
             GET_REGISTER_VALUE(rB, tvm->registers[DEC_REGISTER_RB(i)]);
 
             tvm->registers[rD] = BOOL_VAL(valuesEqual(rA, rB));
-            freeR(tvm, DEC_REGISTER_RA(i));
-            freeR(tvm, DEC_REGISTER_RB(i));
+
             ibreak;
         }
         case OP_BANG_EQUAL:{
@@ -255,15 +243,14 @@ static InterpretResult runVM(TVM* tvm){
             GET_REGISTER_VALUE(rB, tvm->registers[DEC_REGISTER_RB(i)]);
 
             tvm->registers[rD] = BOOL_VAL(valuesNotEqual(rA, rB));
-            freeR(tvm, DEC_REGISTER_RA(i));
-            freeR(tvm, DEC_REGISTER_RB(i));
+
             ibreak;
         }
         case OP_RETURN:{
             printf("Last RD result: ");
-            Value rA;
-            GET_REGISTER_VALUE(rA, tvm->registers[getLastAllocatedRegister(tvm)]);
-            printValue(rA);
+            Value v;
+            GET_REGISTER_VALUE(v, tvm->registers[getLastAllocatedRegister(tvm)]);
+            printValue(v);
             printf("Registers after return: %i\n", tvm->free_register_count);
             return INTERPRET_OK;
             ibreak;
