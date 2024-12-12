@@ -109,6 +109,8 @@ static ido_uint32 emitConstant(Parser *p, Value v){
 
     setLastAllocatedRegister(p->tvm, r);
     writeToProgram(currentProgram(), ENC_CONSTANT(constantIndex, r), p->previous.line);
+    
+    // freeR(p->tvm, r);
     return constantIndex;
 }
 
@@ -151,6 +153,17 @@ static void number(Parser *p, Scanner *sc){
 
 static void string(Parser *p, Scanner *sc){ // TODO: Translate stuff like \n here
     emitConstant(p, OBJ_VAL(copyString(p->tvm, p->previous.start + 1, p->previous.length - 2)));
+}
+
+static void namedVariable(Parser *p, Token name){
+    ido_uint32 arg = identifierConstant(p, &name); // TODO: Check bits of encoding and return indexes fo better handling
+    ido_uint32 resultR = allocR(p->tvm);
+    writeToProgram(currentProgram(), ENC_GET_GLOBAL(arg, resultR), p->previous.line);
+    setLastAllocatedRegister(p->tvm, resultR);
+}
+
+static void variable(Parser *p, Scanner *sc){
+    namedVariable(p, p->previous);
 }
 
 static void unary(Parser *p, Scanner *sc){
@@ -337,7 +350,7 @@ ParseRule rules[] = {
   [T_GREATER_EQUAL] = {NULL,     binary, PREC_COMPARISON},
   [T_LESS]          = {NULL,     binary, PREC_COMPARISON},
   [T_LESS_EQUAL]    = {NULL,     binary, PREC_COMPARISON},
-  [T_IDEN]          = {NULL,     NULL,   PREC_NONE},
+  [T_IDEN]          = {variable,     NULL,   PREC_NONE},
   [T_STRING]        = {string,   NULL,   PREC_NONE},
   [T_FLOAT]         = {number,   NULL,   PREC_NONE},
   [T_INT]           = {number,   NULL,   PREC_NONE},

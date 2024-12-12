@@ -12,6 +12,7 @@ typedef enum {
     OP_PRINT,
 
     OP_DEFINE_GLOBAL,
+    OP_GET_GLOBAL,
 
     OP_ADD,
     OP_SUB,
@@ -76,8 +77,8 @@ typedef enum {
 #define ENC_EQUAL(dstr, ra, rb)          ((OP_EQUAL         << 26) | ((dstr & 0xFF) << 18) | ((ra & 0xFF) << 10) | (rb))
 #define ENC_BANG_EQUAL(dstr, ra, rb)     ((OP_BANG_EQUAL    << 26) | ((dstr & 0xFF) << 18) | ((ra & 0xFF) << 10) | (rb))
 
-#define ENC_DEFINE_GLOBAL(dstr)  (OP_DEFINE_GLOBAL << 26) | (dstr << 18)
-
+#define ENC_DEFINE_GLOBAL(cIndex)  (OP_DEFINE_GLOBAL << 26) | (cIndex << 18)
+#define ENC_GET_GLOBAL(cIndex, r)       (OP_GET_GLOBAL << 26)  | (r << 18) | (cIndex & 0x1FFFF)
 #define ENC_PRINT                      (OP_PRINT << 26) 
 #define ENC_RETURN                   (OP_RETURN << 26) 
 

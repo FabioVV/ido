@@ -144,9 +144,9 @@ static InterpretResult runVM(TVM* tvm){
         switch (GET_OPCODE(i))
         {
         case OP_CONSTANT:{
-            ido_uint32 r = DEC_REGISTER_DEST(i);
+            ido_uint32 rD = DEC_REGISTER_DEST(i);
             ido_uint32 constantIndex = DEC_CONSTANT_INDEX(i);
-            tvm->registers[r] = INUMBER_VAL(constantIndex);
+            tvm->registers[rD] = INUMBER_VAL(constantIndex);
             ibreak;
         }
         case OP_PRINT:{
@@ -154,7 +154,7 @@ static InterpretResult runVM(TVM* tvm){
             Value v;
             GET_REGISTER_VALUE(v, tvm->registers[getLastAllocatedRegister(tvm)]);
             printValue(v);
-            // printf("Registers after return: %i\n", tvm->free_register_count);
+            printf("Registers after return: %i\n", tvm->free_register_count);
             ibreak;
         }
         case OP_DEFINE_GLOBAL:{
@@ -164,14 +164,20 @@ static InterpretResult runVM(TVM* tvm){
             GET_REGISTER_VALUE(v, tvm->registers[getLastAllocatedRegister(tvm)]);
             tableSet(&tvm->globals, name, v);
 
-            // Value test;
-            // tableGet(&tvm->globals, name, &test);
-            // printf("Registers: %i\n", tvm->free_register_count);
-            // printf("Value in table: ");
-            // printValue(test);
-
             ibreak;
         }
+        case OP_GET_GLOBAL:{
+            ido_uint32 rD = DEC_REGISTER_DEST(i);
+            ido_uint32 constantIndex = DEC_CONSTANT_INDEX(i);
+            ObjString* name = READ_STRING(GET_CONSTANT(constantIndex));
+            Value v;
+            if(!tableGet(&tvm->globals, name, &v)){
+                runtimeErr(tvm, "undefined var '%s'", name->chars);
+                return INTERPRET_RUNTIME_ERROR;
+            }
+            tvm->registers[rD] = v;
+            ibreak;
+        }   
         case OP_ADD:{
             ido_uint32 rD = DEC_REGISTER_DEST(i);
             Value rA;
