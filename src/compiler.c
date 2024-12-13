@@ -2,6 +2,7 @@
 #define C_COMPILER
 
 #include <stdio.h>
+#include <string.h>
 #include "memory.h"
 #include "tvm.h"
 #include "lexer.h"
@@ -81,8 +82,13 @@ static void beginScope(Compiler* c){
     c->scopeDepth++;
 }
 
-static void endScope(Compiler* c){
+static void endScope(Parser *p, Compiler* c){
     c->scopeDepth--;
+    while(c->localCount > 0 && c->locals[c->localCount - 1].depth > c->scopeDepth){
+        int regIndex = c->locals[c->localCount - 1].registerIndex;
+        freeR(p->tvm, regIndex);
+        c->localCount--;
+    }
 }
 
 static void advance(Parser* p, Scanner* sc, Compiler* c){
@@ -126,10 +132,12 @@ static ido_uint32 createConstant(Parser* p, Value v){
 static ido_uint32 emitConstant(Parser *p, Value v){
     ido_uint32 constantIndex = createConstant(p, v);
     ido_uint32 r = allocR(p->tvm); 
-
+    
     setLastAllocatedRegister(p->tvm, r);
     writeToProgram(currentProgram(), ENC_CONSTANT(constantIndex, r), p->previous.line);
-    
+    printf("r%i\n", r);
+    printf("r%i last alloc\n", getLastAllocatedRegister(p->tvm));
+
     // freeR(p->tvm, r);
     return constantIndex;
 }
@@ -161,14 +169,35 @@ static ido_uint32 identifierConstant(Parser *p, Token* name){
     return emitConstant(p, OBJ_VAL(copyString(p->tvm, name->start, name->length)));
 }
 
+static bool identifiersEqual(Token* a, Token* b){
+    if(a->length != b->length) return false;
+    return memcmp(a->start, b->start, a->length) == 0;
+}
+
+static int resolveLocal(Parser *p, Compiler* c, Token* name){
+    for(int i = c->localCount - 1; i >= 0; i--){
+        Local* local = &c->locals[i];
+        if(identifiersEqual(name, &local->name)){
+            if(local->depth == -1){
+                error(p, "can't read local variable in its own initializer");
+            }
+            return local->registerIndex;
+        }
+    }
+    return -1;
+}
+
 static void addLocal(Parser *p, Compiler* c, Token name){
     if(c->localCount == LOCALS_NUM){
         error(p, "too many local variables in function");
         return;
     }
+    ido_uint32 r = allocR(p->tvm);
+    // p->tvm->registers[r] =p->tvm->registers[getLastAllocatedRegister(p->tvm)];
     Local* local = &c->locals[c->localCount++];
     local->name = name;
-    local->depth = c->scopeDepth;
+    local->depth =-1;
+    local->registerIndex = r;
 }
 
 static void declareVariable(Parser *p, Compiler* c){
@@ -186,8 +215,14 @@ static ido_uint32 parseVariable(Parser *p, Scanner *sc, Compiler* c, const char*
     return identifierConstant(p, &p->previous);
 }
 
+static void markInitialized(Parser *p, Compiler* c){
+    c->locals[c->localCount - 1].depth = c->scopeDepth;
+    writeToProgram(currentProgram(), ENC_SET_LOCAL(c->locals[c->localCount - 1].registerIndex), p->previous.line);
+}
+
 static void defineVariable(Parser *p, Compiler* c, ido_uint32 global){
     if(c->scopeDepth > 0){
+        markInitialized(p, c);
         return;
     }
     writeToProgram(currentProgram(), ENC_DEFINE_GLOBAL(global), p->previous.line);
@@ -204,17 +239,30 @@ static void string(Parser *p, Scanner *sc, Compiler* c, bool canAssign){ // TODO
 }
 
 static void namedVariable(Parser *p, Scanner *sc, Compiler* c, Token name, bool canAssign){
-    ido_uint32 arg = identifierConstant(p, &name); // TODO: Check bits of encoding and return indexes fo better handling
-
-    if(canAssign && match(p, sc, c, T_EQUAL)){
-        expression(p, sc, c);
-        writeToProgram(currentProgram(), ENC_SET_GLOBAL(arg), p->previous.line);
+    ido_uint32 arg = resolveLocal(p, c, &name);
+    // I know this routine sucks, i will refactor it later. (Ah yes, 'refactor it later'. Sure. Obvioulsly that will happen.)
+    if(arg != -1){
+        if(canAssign && match(p, sc, c, T_EQUAL)){
+            expression(p, sc, c);
+            writeToProgram(currentProgram(), ENC_SET_LOCAL(arg), p->previous.line);
+        } else {
+            ido_uint32 resultR = allocR(p->tvm);
+            writeToProgram(currentProgram(), ENC_GET_LOCAL(arg, resultR), p->previous.line);
+            setLastAllocatedRegister(p->tvm, resultR);
+        }
     } else {
-        ido_uint32 resultR = allocR(p->tvm);
-        writeToProgram(currentProgram(), ENC_GET_GLOBAL(arg, resultR), p->previous.line);
-        setLastAllocatedRegister(p->tvm, resultR);
-    }
+        ido_uint32 arg = identifierConstant(p, &name); // TODO: Check bits of encoding and return indexes fo better handling
 
+        if(canAssign && match(p, sc, c, T_EQUAL)){
+            expression(p, sc, c);
+            writeToProgram(currentProgram(), ENC_SET_GLOBAL(arg), p->previous.line);
+        } else {
+            ido_uint32 resultR = allocR(p->tvm);
+            writeToProgram(currentProgram(), ENC_GET_GLOBAL(arg, resultR), p->previous.line);
+            setLastAllocatedRegister(p->tvm, resultR);
+        }
+    }
+    
 }
 
 static void variable(Parser *p, Scanner *sc, Compiler* c, bool canAssign){
@@ -281,6 +329,7 @@ static void expressionStatement(Parser *p, Scanner *sc, Compiler* c){
 static void printStatement(Parser *p, Scanner *sc, Compiler* c){
     expression(p, sc, c);
     consume(p, sc, c, T_SEMICOLON, "expect ';' after value");
+    printf("Before writing print last alloc %i\n", getLastAllocatedRegister(p->tvm));
     writeToProgram(currentProgram(), ENC_PRINT, p->previous.line);
 }
 
@@ -321,7 +370,7 @@ static void statement(Parser *p, Scanner *sc, Compiler* c){
     } else if(match(p, sc, c, T_LEFT_BRACE)){
         beginScope(c);
         block(p, sc, c);
-        endScope(c);
+        endScope(p, c);
     } else {
         expressionStatement(p, sc, c);
     }

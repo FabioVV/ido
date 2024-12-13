@@ -25,6 +25,7 @@ typedef enum {
 typedef struct {
     Token name;
     int depth;
+    uint8_t registerIndex;
 } Local;
 
 typedef struct {

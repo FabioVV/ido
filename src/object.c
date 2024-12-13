@@ -122,7 +122,7 @@ void printObject(Value v){
     switch (OBJ_TYPE(v))
     {
     case OBJ_STRING:
-        printf("%s\n", AS_CSTRING(v));
+        printf("%s", AS_CSTRING(v));
         break;
     default: return;
     }

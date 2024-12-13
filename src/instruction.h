@@ -14,6 +14,8 @@ typedef enum {
     OP_DEFINE_GLOBAL,
     OP_GET_GLOBAL,
     OP_SET_GLOBAL,
+    OP_GET_LOCAL,
+    OP_SET_LOCAL,
 
     OP_ADD,
     OP_SUB,
@@ -83,9 +85,11 @@ typedef enum {
 #define ENC_SET_GLOBAL(cIndex)       ((OP_SET_GLOBAL << 26) | (cIndex & 0x03FFFFFF))
 #define DEC_GET_GLOBAL_CINDEX(instruction)     ((instruction) & 0x03FFFFFF)
 
+#define ENC_GET_LOCAL(cIndex, r)       (OP_GET_LOCAL << 26)  | (r << 18) | (cIndex & 0x1FFFF)
+#define ENC_SET_LOCAL(rIndex)            (OP_SET_LOCAL << 26)  | (rIndex & 0x03FFFFFF)
+
 #define ENC_PRINT                      (OP_PRINT << 26) 
 #define ENC_RETURN                   (OP_RETURN << 26) 
-
 // Instructions handling
 
 typedef ido_uint32 Instruction;

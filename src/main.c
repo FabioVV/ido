@@ -8,7 +8,7 @@ void repl(TVM* tvm){
     sys_info_print_repl();
     
     for(;;){
-        printf("[%03d]> ", lc);
+        printf("IDO[%03d]> ", lc);
 
         if(!fgets(line, sizeof(line), stdin)){
             printf("\n");

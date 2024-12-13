@@ -47,10 +47,6 @@ static void runtimeErr(TVM* tvm, const char* format, ...){
 }
 
 ido_uint32 getLastAllocatedRegister(TVM* tvm){
-    if(tvm->last_allocated_register == -1){
-        fprintf(stderr, "registererr: no register allocated for eval.\n");
-        exit(1);
-    }
     return tvm->last_allocated_register;
 }
 
@@ -140,21 +136,28 @@ static InterpretResult runVM(TVM* tvm){
 
     for(;;){
         register Instruction i = NEXT_INSTRUCTION(tvm);
-
-        switch (GET_OPCODE(i))
+        Opcode OP = GET_OPCODE(i);
+        switch (OP)
         {
         case OP_CONSTANT:{
             ido_uint32 rD = DEC_REGISTER_DEST(i);
             ido_uint32 constantIndex = DEC_CONSTANT_INDEX(i);
             tvm->registers[rD] = INUMBER_VAL(constantIndex);
+            printf("Allocated constant ");
+            Value v;
+            GET_REGISTER_VALUE(v, tvm->registers[rD]);
+            printValue(v);
+            printf(" on R%i\n", rD);
             ibreak;
         }
         case OP_PRINT:{
-            // printf("Last RD result: ");
+            printf("last allocated register (inside of OP_PRINT) R%i\n", getLastAllocatedRegister(tvm));
             Value v;
             GET_REGISTER_VALUE(v, tvm->registers[getLastAllocatedRegister(tvm)]);
+            printf("print result: ");
             printValue(v);
-            printf("Registers after return: %i\n", tvm->free_register_count);
+            printf("\n");
+            // printf("Registers after return: %i\n", tvm->free_register_count);
             ibreak;
         }
         case OP_DEFINE_GLOBAL:{
@@ -191,13 +194,24 @@ static InterpretResult runVM(TVM* tvm){
             }
             ibreak;
         } 
+        case OP_GET_LOCAL :{
+            ido_uint32 rD = DEC_REGISTER_DEST(i);
+            ido_uint32 rIndex = DEC_CONSTANT_INDEX(i);
+            tvm->registers[rD] = tvm->registers[rIndex];           
+            ibreak;
+        }
+        case OP_SET_LOCAL:{
+            ido_uint32 rIndex = DEC_GET_GLOBAL_CINDEX(i);
+            tvm->registers[rIndex] = tvm->registers[getLastAllocatedRegister(tvm)];           
+            ibreak;
+        }
         case OP_ADD:{
             ido_uint32 rD = DEC_REGISTER_DEST(i);
             Value rA;
             GET_REGISTER_VALUE(rA, tvm->registers[DEC_REGISTER_RA(i)]);
             Value rB;
             GET_REGISTER_VALUE(rB, tvm->registers[DEC_REGISTER_RB(i)]);
-            
+
             if(IS_STRING(rA) && IS_STRING(rB)){
                 concatenate(tvm, rA, rB, rD);
             } else if(IS_NUMBER(rA) && IS_NUMBER(rB)){

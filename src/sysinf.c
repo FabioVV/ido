@@ -53,5 +53,6 @@ void sys_info_print_repl(){
 #endif
   time_t t;
   time(&t);
-  printf(" %s\n", ctime(&t));
+  printf(" %s", ctime(&t));
+  printf("Happy hacking.\n\n");
 }
