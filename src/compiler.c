@@ -2,6 +2,7 @@
 #define C_COMPILER
 
 #include <stdio.h>
+#include "memory.h"
 #include "tvm.h"
 #include "lexer.h"
 #include "compiler.h"
@@ -12,10 +13,10 @@
 
 // Some forward declarations
 static ParseRule* getRule(TokenType t);
-static void parsePrecedence(Parser *p, Scanner *sc, Precedence prec);
-static void expression(Parser *p, Scanner *sc);
-static void statement(Parser *p, Scanner *sc);
-static void declaration(Parser *p, Scanner *sc);
+static void parsePrecedence(Parser *p, Scanner *sc, Compiler* c, Precedence prec);
+static void expression(Parser *p, Scanner *sc, Compiler* c);
+static void statement(Parser *p, Scanner *sc, Compiler* c);
+static void declaration(Parser *p, Scanner *sc, Compiler* c);
 
 Program* compilingProgram;
 
@@ -24,6 +25,17 @@ Parser* initParser(TVM* tvm){
     if(p == NULL) exit(1);
     p->tvm = tvm;
     return p;
+}
+
+Compiler* initCompiler(){
+    Compiler* c = malloc(sizeof(Compiler));
+    c->localCount = 0;
+    c->scopeDepth = 0;
+    return c;
+}
+
+void freeCompiler(Compiler* compiler){
+
 }
 
 static Program* currentProgram(){
@@ -65,7 +77,15 @@ static void endCompilation(Parser* p){
     emitReturn(p);
 }
 
-static void advance(Parser* p, Scanner* sc){
+static void beginScope(Compiler* c){
+    c->scopeDepth++;
+}
+
+static void endScope(Compiler* c){
+    c->scopeDepth--;
+}
+
+static void advance(Parser* p, Scanner* sc, Compiler* c){
     p->previous = p->current;
     for(;;){
         p->current = scanToken(sc);
@@ -74,9 +94,9 @@ static void advance(Parser* p, Scanner* sc){
     }
 }
 
-static void consume(Parser* p, Scanner* sc, TokenType type, const char* message){
+static void consume(Parser* p, Scanner* sc, Compiler* c, TokenType type, const char* message){
     if(p->current.type == type){
-        advance(p, sc);
+        advance(p, sc, c);
         return;
     }
 
@@ -87,9 +107,9 @@ static bool check(Parser* p, Scanner* sc, TokenType t){
     return p->current.type == t;
 }
 
-static bool match(Parser* p, Scanner* sc, TokenType t){
+static bool match(Parser* p, Scanner* sc, Compiler* c, TokenType t){
     if(!check(p, sc, t)) return false;
-    advance(p, sc);
+    advance(p, sc, c);
     return true;
 }
 
@@ -114,8 +134,8 @@ static ido_uint32 emitConstant(Parser *p, Value v){
     return constantIndex;
 }
 
-static void parsePrecedence(Parser *p, Scanner *sc, Precedence prec){
-    advance(p, sc);
+static void parsePrecedence(Parser *p, Scanner *sc, Compiler* c, Precedence prec){
+    advance(p, sc, c);
     ParseFn prefixRule = getRule(p->previous.type)->prefix;
 
     if(prefixRule == NULL){
@@ -124,15 +144,15 @@ static void parsePrecedence(Parser *p, Scanner *sc, Precedence prec){
     }
 
     bool canAssign = prec  <= PREC_ASSIGNMENT;
-    prefixRule(p, sc, canAssign);
+    prefixRule(p, sc, c, canAssign);
 
     while(prec <= getRule(p->current.type)->precedence){
-        advance(p, sc);
+        advance(p, sc, c);
         ParseFn infixRule = getRule(p->previous.type)->infix;
-        infixRule(p, sc, canAssign);
+        infixRule(p, sc, c, canAssign);
     }
 
-    if(canAssign && match(p, sc, T_EQUAL)){
+    if(canAssign && match(p, sc, c, T_EQUAL)){
         error(p, "invalid assignment target");
     }
 }
@@ -141,46 +161,69 @@ static ido_uint32 identifierConstant(Parser *p, Token* name){
     return emitConstant(p, OBJ_VAL(copyString(p->tvm, name->start, name->length)));
 }
 
-static ido_uint32 parseVariable(Parser *p, Scanner *sc, const char* errorMessage){
-    consume(p, sc, T_IDEN, errorMessage);
+static void addLocal(Parser *p, Compiler* c, Token name){
+    if(c->localCount == LOCALS_NUM){
+        error(p, "too many local variables in function");
+        return;
+    }
+    Local* local = &c->locals[c->localCount++];
+    local->name = name;
+    local->depth = c->scopeDepth;
+}
+
+static void declareVariable(Parser *p, Compiler* c){
+    if(c->scopeDepth == 0) return;
+    Token* name = &p->previous;
+    addLocal(p, c, *name);
+}
+
+static ido_uint32 parseVariable(Parser *p, Scanner *sc, Compiler* c, const char* errorMessage){
+    consume(p, sc, c, T_IDEN, errorMessage);
+
+    declareVariable(p, c);
+    if(c->scopeDepth > 0) return 0;
+
     return identifierConstant(p, &p->previous);
 }
 
-static void defineVariable(Parser *p, ido_uint32 global){
+static void defineVariable(Parser *p, Compiler* c, ido_uint32 global){
+    if(c->scopeDepth > 0){
+        return;
+    }
     writeToProgram(currentProgram(), ENC_DEFINE_GLOBAL(global), p->previous.line);
 }
 
-static void number(Parser *p, Scanner *sc, bool canAssign){
+static void number(Parser *p, Scanner *sc, Compiler* c, bool canAssign){
     double value = strtod(p->previous.start, NULL);
     Value v = DNUMBER_VAL(value);
     emitConstant(p, v);
 }
 
-static void string(Parser *p, Scanner *sc, bool canAssign){ // TODO: Translate stuff like \n here
+static void string(Parser *p, Scanner *sc, Compiler* c, bool canAssign){ // TODO: Translate stuff like \n here
     emitConstant(p, OBJ_VAL(copyString(p->tvm, p->previous.start + 1, p->previous.length - 2)));
 }
 
-static void namedVariable(Parser *p, Scanner *sc, Token name, bool canAssign){
+static void namedVariable(Parser *p, Scanner *sc, Compiler* c, Token name, bool canAssign){
     ido_uint32 arg = identifierConstant(p, &name); // TODO: Check bits of encoding and return indexes fo better handling
-    ido_uint32 resultR = allocR(p->tvm);
 
-    if(canAssign && match(p, sc, T_EQUAL)){
-        expression(p, sc);
-        writeToProgram(currentProgram(), ENC_SET_GLOBAL(arg, resultR), p->previous.line);
+    if(canAssign && match(p, sc, c, T_EQUAL)){
+        expression(p, sc, c);
+        writeToProgram(currentProgram(), ENC_SET_GLOBAL(arg), p->previous.line);
     } else {
+        ido_uint32 resultR = allocR(p->tvm);
         writeToProgram(currentProgram(), ENC_GET_GLOBAL(arg, resultR), p->previous.line);
         setLastAllocatedRegister(p->tvm, resultR);
     }
 
 }
 
-static void variable(Parser *p, Scanner *sc, bool canAssign){
-    namedVariable(p, sc, p->previous, canAssign);
+static void variable(Parser *p, Scanner *sc, Compiler* c, bool canAssign){
+    namedVariable(p, sc, c, p->previous, canAssign);
 }
 
-static void unary(Parser *p, Scanner *sc, bool canAssign){
+static void unary(Parser *p, Scanner *sc, Compiler* c, bool canAssign){
     TokenType opType = p->previous.type;
-    parsePrecedence(p, sc, PREC_UNARY);
+    parsePrecedence(p, sc, c, PREC_UNARY);
 
     if(p->tvm->last_allocated_register == -1){ // TODO: very hacky. If there is not last allocated it means the user
         return;                                // has entered something like ! or - without a proceeding operator
@@ -201,39 +244,47 @@ static void unary(Parser *p, Scanner *sc, bool canAssign){
 
 }
 
-static void expression(Parser *p, Scanner *sc){
-    parsePrecedence(p, sc, PREC_ASSIGNMENT);
+static void expression(Parser *p, Scanner *sc, Compiler* c){
+    parsePrecedence(p, sc, c, PREC_ASSIGNMENT);
 }
 
-static void varDeclaration(Parser *p, Scanner *sc){
-    ido_uint32 global = parseVariable(p, sc, "expect var name"); // Get the constant index of the string name
-    if(match(p, sc, T_EQUAL)){
-        expression(p,sc); // its going to set a register to the initial val of the var eg: var a = "test";  the string "test" being the initial val here
+static void block(Parser *p, Scanner *sc, Compiler* c){
+    while(!check(p, sc, T_RIGHT_BRACE) && !check(p, sc, T_EOF)) {
+        declaration(p, sc, c);
+    }
+
+    consume(p, sc, c, T_RIGHT_BRACE, "expect '}' after block");
+}
+
+static void varDeclaration(Parser *p, Scanner *sc, Compiler* c){
+    ido_uint32 global = parseVariable(p, sc, c, "expect var name"); // Get the constant index of the string name
+    if(match(p, sc, c, T_EQUAL)){
+        expression(p, sc, c); // its going to set a register to the initial val of the var eg: var a = "test";  the string "test" being the initial val here
     }  else {
         ido_uint32 resultR = allocR(p->tvm); 
         writeToProgram(currentProgram(), ENC_NIL(resultR), p->previous.line); // else it does not have a initial value, allocate a nil instead
         setLastAllocatedRegister(p->tvm, resultR);
     }
-    consume(p, sc, T_SEMICOLON, "expect ';' after var declaration");
-    defineVariable(p, global);
+    consume(p, sc, c, T_SEMICOLON, "expect ';' after var declaration");
+    defineVariable(p, c, global);
     freeR(p->tvm, getLastAllocatedRegister(p->tvm));
 }
 
 
 
-static void expressionStatement(Parser *p, Scanner *sc){
-    expression(p, sc);
-    consume(p, sc, T_SEMICOLON, "expect ';' after expression");
+static void expressionStatement(Parser *p, Scanner *sc, Compiler* c){
+    expression(p, sc, c);
+    consume(p, sc, c, T_SEMICOLON, "expect ';' after expression");
     freeR(p->tvm, getLastAllocatedRegister(p->tvm));
 }
 
-static void printStatement(Parser *p, Scanner *sc){
-    expression(p, sc);
-    consume(p, sc, T_SEMICOLON, "expect ';' after value");
+static void printStatement(Parser *p, Scanner *sc, Compiler* c){
+    expression(p, sc, c);
+    consume(p, sc, c, T_SEMICOLON, "expect ';' after value");
     writeToProgram(currentProgram(), ENC_PRINT, p->previous.line);
 }
 
-static void sync(Parser *p, Scanner *sc){
+static void sync(Parser *p, Scanner *sc, Compiler* c){
     p->panicMode = false;
     
     while(p->current.type != T_EOF){
@@ -251,38 +302,42 @@ static void sync(Parser *p, Scanner *sc){
         
         default:;
         }
-        advance(p, sc);
+        advance(p, sc, c);
     }
 }
 
-static void declaration(Parser *p, Scanner *sc){
-    if(match(p, sc, T_VAR)){
-        varDeclaration(p, sc);
+static void declaration(Parser *p, Scanner *sc, Compiler* c){
+    if(match(p, sc, c, T_VAR)){
+        varDeclaration(p, sc, c);
     } else {
-        statement(p, sc);
+        statement(p, sc, c);
     }
-    if(p->panicMode) sync(p, sc);
+    if(p->panicMode) sync(p, sc, c);
 }
 
-static void statement(Parser *p, Scanner *sc){
-    if(match(p, sc, T_PRINT)){
-        printStatement(p, sc);
+static void statement(Parser *p, Scanner *sc, Compiler* c){
+    if(match(p, sc, c, T_PRINT)){
+        printStatement(p, sc, c);
+    } else if(match(p, sc, c, T_LEFT_BRACE)){
+        beginScope(c);
+        block(p, sc, c);
+        endScope(c);
     } else {
-        expressionStatement(p, sc);
+        expressionStatement(p, sc, c);
     }
 }
 
-static void inline grouping(Parser *p, Scanner *sc, bool canAssign){
-    expression(p, sc);
-    consume(p, sc, T_RIGHT_PAREN, "expect ')' after expression");
+static void inline grouping(Parser *p, Scanner *sc, Compiler* c, bool canAssign){
+    expression(p, sc, c);
+    consume(p, sc, c, T_RIGHT_PAREN, "expect ')' after expression");
 }
 
-static void binary(Parser *p, Scanner *sc, bool canAssign){
+static void binary(Parser *p, Scanner *sc, Compiler* c, bool canAssign){
     TokenType opType = p->previous.type;
     ParseRule* rule = getRule(opType);
 
     ido_uint32 leftR = getLastAllocatedRegister(p->tvm);
-    parsePrecedence(p, sc, (Precedence)rule->precedence+1);
+    parsePrecedence(p, sc, c, (Precedence)rule->precedence+1);
     ido_uint32 rightR = getLastAllocatedRegister(p->tvm);
     
     ido_uint32 resultR = allocR(p->tvm);
@@ -328,7 +383,7 @@ static void binary(Parser *p, Scanner *sc, bool canAssign){
 
 }
 
-static void literal(Parser *p, Scanner *sc, bool canAssign){
+static void literal(Parser *p, Scanner *sc, Compiler* c, bool canAssign){
     ido_uint32 resultR = allocR(p->tvm);
 
     switch (p->previous.type) {
@@ -388,19 +443,23 @@ static ParseRule* getRule(TokenType t){
 }
 
 bool compile(const char* source, Program* program, TVM* tvm){
-    Scanner* sc = initScanner(source);
-    Parser* p = initParser(tvm);
+    Scanner* sc = initScanner(source); // TODO: pass them in to compiler, so that they can be freed later
+    Parser* p = initParser(tvm);// free this also
+    Compiler* c = initCompiler();
+
     compilingProgram = program;
 
     p->panicMode = false;
     p->hadError = false;
 
-    advance(p, sc);
-    while(!match(p, sc, T_EOF)){
-        declaration(p, sc);
+    advance(p, sc, c);
+    while(!match(p, sc, c, T_EOF)){
+        declaration(p, sc, c);
     }
 
     endCompilation(p);
+    freeCompiler(c);
+
     return !p->hadError;
 }
 

@@ -179,8 +179,7 @@ static InterpretResult runVM(TVM* tvm){
             ibreak;
         }  
         case OP_SET_GLOBAL:{
-            ido_uint32 rD = DEC_REGISTER_DEST(i);
-            ido_uint32 constantIndex = DEC_CONSTANT_INDEX(i);
+            ido_uint32 constantIndex = DEC_GET_GLOBAL_CINDEX(i);
             ObjString* name = READ_STRING(GET_CONSTANT(constantIndex));
             Value v;
             GET_REGISTER_VALUE(v, tvm->registers[getLastAllocatedRegister(tvm)]);
