@@ -135,10 +135,7 @@ static ido_uint32 emitConstant(Parser *p, Value v){
     
     setLastAllocatedRegister(p->tvm, r);
     writeToProgram(currentProgram(), ENC_CONSTANT(constantIndex, r), p->previous.line);
-    printf("r%i\n", r);
-    printf("r%i last alloc\n", getLastAllocatedRegister(p->tvm));
 
-    // freeR(p->tvm, r);
     return constantIndex;
 }
 
@@ -193,7 +190,6 @@ static void addLocal(Parser *p, Compiler* c, Token name){
         return;
     }
     ido_uint32 r = allocR(p->tvm);
-    // p->tvm->registers[r] =p->tvm->registers[getLastAllocatedRegister(p->tvm)];
     Local* local = &c->locals[c->localCount++];
     local->name = name;
     local->depth =-1;
@@ -217,7 +213,7 @@ static ido_uint32 parseVariable(Parser *p, Scanner *sc, Compiler* c, const char*
 
 static void markInitialized(Parser *p, Compiler* c){
     c->locals[c->localCount - 1].depth = c->scopeDepth;
-    writeToProgram(currentProgram(), ENC_SET_LOCAL(c->locals[c->localCount - 1].registerIndex), p->previous.line);
+    writeToProgram(currentProgram(), ENC_SET_LOCAL(getLastAllocatedRegister(p->tvm), c->locals[c->localCount - 1].registerIndex), p->previous.line);
 }
 
 static void defineVariable(Parser *p, Compiler* c, ido_uint32 global){
@@ -225,7 +221,7 @@ static void defineVariable(Parser *p, Compiler* c, ido_uint32 global){
         markInitialized(p, c);
         return;
     }
-    writeToProgram(currentProgram(), ENC_DEFINE_GLOBAL(global), p->previous.line);
+    writeToProgram(currentProgram(), ENC_DEFINE_GLOBAL(getLastAllocatedRegister(p->tvm), global), p->previous.line);
 }
 
 static void number(Parser *p, Scanner *sc, Compiler* c, bool canAssign){
@@ -244,7 +240,7 @@ static void namedVariable(Parser *p, Scanner *sc, Compiler* c, Token name, bool 
     if(arg != -1){
         if(canAssign && match(p, sc, c, T_EQUAL)){
             expression(p, sc, c);
-            writeToProgram(currentProgram(), ENC_SET_LOCAL(arg), p->previous.line);
+            writeToProgram(currentProgram(), ENC_SET_LOCAL(getLastAllocatedRegister(p->tvm), arg), p->previous.line);
         } else {
             ido_uint32 resultR = allocR(p->tvm);
             writeToProgram(currentProgram(), ENC_GET_LOCAL(arg, resultR), p->previous.line);
@@ -255,7 +251,7 @@ static void namedVariable(Parser *p, Scanner *sc, Compiler* c, Token name, bool 
 
         if(canAssign && match(p, sc, c, T_EQUAL)){
             expression(p, sc, c);
-            writeToProgram(currentProgram(), ENC_SET_GLOBAL(arg), p->previous.line);
+            writeToProgram(currentProgram(), ENC_SET_GLOBAL(getLastAllocatedRegister(p->tvm), arg), p->previous.line);
         } else {
             ido_uint32 resultR = allocR(p->tvm);
             writeToProgram(currentProgram(), ENC_GET_GLOBAL(arg, resultR), p->previous.line);
@@ -329,8 +325,8 @@ static void expressionStatement(Parser *p, Scanner *sc, Compiler* c){
 static void printStatement(Parser *p, Scanner *sc, Compiler* c){
     expression(p, sc, c);
     consume(p, sc, c, T_SEMICOLON, "expect ';' after value");
-    printf("Before writing print last alloc %i\n", getLastAllocatedRegister(p->tvm));
-    writeToProgram(currentProgram(), ENC_PRINT, p->previous.line);
+
+    writeToProgram(currentProgram(), ENC_PRINT(getLastAllocatedRegister(p->tvm)), p->previous.line);
 }
 
 static void sync(Parser *p, Scanner *sc, Compiler* c){

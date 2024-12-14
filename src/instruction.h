@@ -80,15 +80,19 @@ typedef enum {
 #define ENC_EQUAL(dstr, ra, rb)          ((OP_EQUAL         << 26) | ((dstr & 0xFF) << 18) | ((ra & 0xFF) << 10) | (rb))
 #define ENC_BANG_EQUAL(dstr, ra, rb)     ((OP_BANG_EQUAL    << 26) | ((dstr & 0xFF) << 18) | ((ra & 0xFF) << 10) | (rb))
 
-#define ENC_DEFINE_GLOBAL(cIndex)       (OP_DEFINE_GLOBAL << 26) | (cIndex << 18)
+
+
+#define ENC_DEFINE_GLOBAL(rReadFrom, cIndex)       (OP_DEFINE_GLOBAL << 26) | (rReadFrom << 18) | (cIndex & 0x1FFFF) // TODO: look at possibility to remove this instruction an use SET_GLOBAL instead
 #define ENC_GET_GLOBAL(cIndex, r)       (OP_GET_GLOBAL << 26)  | (r << 18) | (cIndex & 0x1FFFF)
-#define ENC_SET_GLOBAL(cIndex)       ((OP_SET_GLOBAL << 26) | (cIndex & 0x03FFFFFF))
+#define ENC_SET_GLOBAL(rReadFrom, cIndex)       (OP_SET_GLOBAL << 26) | (rReadFrom << 18) | (cIndex & 0x1FFFF)
 #define DEC_GET_GLOBAL_CINDEX(instruction)     ((instruction) & 0x03FFFFFF)
 
 #define ENC_GET_LOCAL(cIndex, r)       (OP_GET_LOCAL << 26)  | (r << 18) | (cIndex & 0x1FFFF)
-#define ENC_SET_LOCAL(rIndex)            (OP_SET_LOCAL << 26)  | (rIndex & 0x03FFFFFF)
+#define ENC_SET_LOCAL(rReadFrom, rIndex)            (OP_SET_LOCAL << 26)  | (rReadFrom << 18) | (rIndex & 0x1FFFF)
 
-#define ENC_PRINT                      (OP_PRINT << 26) 
+
+
+#define ENC_PRINT(rIndex)            (OP_PRINT << 26) | (rIndex & 0x03FFFFFF)
 #define ENC_RETURN                   (OP_RETURN << 26) 
 // Instructions handling
 

@@ -143,28 +143,24 @@ static InterpretResult runVM(TVM* tvm){
             ido_uint32 rD = DEC_REGISTER_DEST(i);
             ido_uint32 constantIndex = DEC_CONSTANT_INDEX(i);
             tvm->registers[rD] = INUMBER_VAL(constantIndex);
-            printf("Allocated constant ");
-            Value v;
-            GET_REGISTER_VALUE(v, tvm->registers[rD]);
-            printValue(v);
-            printf(" on R%i\n", rD);
             ibreak;
         }
         case OP_PRINT:{
-            printf("last allocated register (inside of OP_PRINT) R%i\n", getLastAllocatedRegister(tvm));
+            ido_uint32 rIndex = DEC_GET_GLOBAL_CINDEX(i);
             Value v;
-            GET_REGISTER_VALUE(v, tvm->registers[getLastAllocatedRegister(tvm)]);
-            printf("print result: ");
+            GET_REGISTER_VALUE(v, tvm->registers[rIndex]);
             printValue(v);
             printf("\n");
             // printf("Registers after return: %i\n", tvm->free_register_count);
             ibreak;
         }
         case OP_DEFINE_GLOBAL:{
-            ido_uint32 rD = DEC_REGISTER_DEST(i);
-            ObjString* name = READ_STRING(GET_CONSTANT(rD));
+            ido_uint32 rReadFrom = DEC_REGISTER_DEST(i);
+            ido_uint32 constantIndex = DEC_CONSTANT_INDEX(i);
+
+            ObjString* name = READ_STRING(GET_CONSTANT(constantIndex));
             Value v;
-            GET_REGISTER_VALUE(v, tvm->registers[getLastAllocatedRegister(tvm)]);
+            GET_REGISTER_VALUE(v, tvm->registers[rReadFrom]);
             tableSet(&tvm->globals, name, v);
 
             ibreak;
@@ -182,10 +178,12 @@ static InterpretResult runVM(TVM* tvm){
             ibreak;
         }  
         case OP_SET_GLOBAL:{
-            ido_uint32 constantIndex = DEC_GET_GLOBAL_CINDEX(i);
+            ido_uint32 rReadFrom = DEC_REGISTER_DEST(i);
+            ido_uint32 constantIndex = DEC_CONSTANT_INDEX(i);
+
             ObjString* name = READ_STRING(GET_CONSTANT(constantIndex));
             Value v;
-            GET_REGISTER_VALUE(v, tvm->registers[getLastAllocatedRegister(tvm)]);
+            GET_REGISTER_VALUE(v, tvm->registers[rReadFrom]);
 
             if(tableSet(&tvm->globals, name, v)){
                 tableDelete(&tvm->globals, name);
@@ -201,8 +199,10 @@ static InterpretResult runVM(TVM* tvm){
             ibreak;
         }
         case OP_SET_LOCAL:{
-            ido_uint32 rIndex = DEC_GET_GLOBAL_CINDEX(i);
-            tvm->registers[rIndex] = tvm->registers[getLastAllocatedRegister(tvm)];           
+            ido_uint32 rReadFrom = DEC_REGISTER_DEST(i);
+            ido_uint32 rIndex = DEC_CONSTANT_INDEX(i); // Need better handling aswell, maybe a dec_register_index
+
+            tvm->registers[rIndex] = tvm->registers[rReadFrom];
             ibreak;
         }
         case OP_ADD:{
