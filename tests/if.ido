@@ -1,0 +1,16 @@
+var f = true;
+var s = false;
+
+if(f){
+    print "F var is true";
+} else {
+    print "This should not execute";
+}
+
+if(s){
+    print "This should not execute";
+} else {
+    print "S var is false";
+}
+
+print "after" + " ifs";

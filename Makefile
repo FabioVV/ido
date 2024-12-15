@@ -44,3 +44,11 @@ run: $(TARGET)
 debug: $(TARGET)
 	@echo "=> running IDO on debug mode"
 	@gdb ./$(TARGET)
+
+test: $(TARGET)
+	@echo "=> running test IDO script"
+	@./$(TARGET) tests/$(filter-out $@,$(MAKECMDGOALS))
+
+# Prevent Make from interpreting the test file as a Makefile target
+%:
+	@:

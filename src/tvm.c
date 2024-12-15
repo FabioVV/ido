@@ -91,10 +91,8 @@ ido_uint32 allocR(TVM* tvm){
 
 void freeR(TVM* tvm, ido_uint32 r){
     if(!IS_REGISTER_FREE(r)){
-        fprintf(stderr, "registererr: attempted to free invalid register %u\n", r);
-        exit(1);
+        tvm->free_registers[tvm->free_register_count++] = r;
     }
-    tvm->free_registers[tvm->free_register_count++] = r;
 }
 
 static InterpretResult runVM(TVM* tvm){
@@ -302,6 +300,18 @@ static InterpretResult runVM(TVM* tvm){
 
             tvm->registers[rD] = BOOL_VAL(valuesNotEqual(rA, rB));
 
+            ibreak;
+        }
+        case OP_JUMP_IF_FALSE:{
+            ido_uint32 offset = GET_JUMP_OFFSET(i);
+            ido_uint32 readConditionFrom = DEC_REGISTER_DEST(i);
+
+            if(isFalsey(tvm->registers[readConditionFrom])) tvm->pc += offset;
+            ibreak;
+        }
+        case OP_JUMP:{
+            ido_uint32 offset = GET_JUMP_OFFSET(i);
+            tvm->pc += offset;
             ibreak;
         }
         case OP_RETURN:{

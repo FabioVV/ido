@@ -134,6 +134,29 @@ static ido_uint32 emitConstant(Parser *p, Compiler* c, Value v){
     return constantIndex;
 }
 
+static int writeJumpIfFalse(Parser *p, Compiler* c){
+    writeToProgram(currentProgram(), ENC_JUMP_IF_FALSE(getLastAllocatedRegister(c->tvm)), p->previous.line);
+    return currentProgram()->count - 1;
+}
+
+static int writeJump(Parser *p, Compiler* c){
+    writeToProgram(currentProgram(), ENC_JUMP(), p->previous.line);
+    return currentProgram()->count - 1;
+}
+
+static void patchJump(Parser *p, int offset){
+
+    int jump = currentProgram()->count - offset - 1;
+
+   // ensure the jump doesn't exceed the allowed 18-bit range
+    if(jump > 0x3FFFF){ // 0x3FFFF = 18 bits
+        error(p, "too much code to jump over");
+    }
+
+    currentProgram()->code[offset] = currentProgram()->code[offset] | (jump & 0x3FFFF);
+
+}
+
 static void parsePrecedence(Parser *p, Scanner *sc, Compiler* c, Precedence prec){
     advance(p, sc, c);
     ParseFn prefixRule = getRule(p->previous.type)->prefix;
@@ -309,12 +332,32 @@ static void varDeclaration(Parser *p, Scanner *sc, Compiler* c){
     freeR(c->tvm, getLastAllocatedRegister(c->tvm));
 }
 
-
-
 static void expressionStatement(Parser *p, Scanner *sc, Compiler* c){
     expression(p, sc, c);
     consume(p, sc, c, T_SEMICOLON, "expect ';' after expression");
     freeR(c->tvm, getLastAllocatedRegister(c->tvm));
+}
+
+static void ifStatement(Parser *p, Scanner *sc, Compiler* c){
+    consume(p, sc, c, T_LEFT_PAREN, "expect '(' after 'if'");
+    expression(p, sc, c);
+    consume(p, sc, c, T_RIGHT_PAREN, "expect ')' after condition");
+
+    int thenJump = writeJumpIfFalse(p, c);
+    freeR(c->tvm, getLastAllocatedRegister(c->tvm));
+
+    statement(p, sc, c);
+    int elseJump = writeJump(p, c);
+
+
+    patchJump(p, thenJump);
+    freeR(c->tvm, getLastAllocatedRegister(c->tvm));
+
+    if(match(p, sc, c, T_ELSE)){
+        statement(p, sc, c);
+    }
+
+    patchJump(p, elseJump);
 }
 
 static void printStatement(Parser *p, Scanner *sc, Compiler* c){
@@ -358,6 +401,8 @@ static void declaration(Parser *p, Scanner *sc, Compiler* c){
 static void statement(Parser *p, Scanner *sc, Compiler* c){
     if(match(p, sc, c, T_PRINT)){
         printStatement(p, sc, c);
+    } else if(match(p, sc, c, T_IF)){
+        ifStatement(p, sc, c);
     } else if(match(p, sc, c, T_LEFT_BRACE)){
         beginScope(c);
         block(p, sc, c);
@@ -457,7 +502,7 @@ ParseRule rules[] = {
   [T_GREATER_EQUAL] = {NULL,     binary, PREC_COMPARISON},
   [T_LESS]          = {NULL,     binary, PREC_COMPARISON},
   [T_LESS_EQUAL]    = {NULL,     binary, PREC_COMPARISON},
-  [T_IDEN]          = {variable,     NULL,   PREC_NONE},
+  [T_IDEN]          = {variable, NULL,   PREC_NONE},
   [T_STRING]        = {string,   NULL,   PREC_NONE},
   [T_FLOAT]         = {number,   NULL,   PREC_NONE},
   [T_INT]           = {number,   NULL,   PREC_NONE},

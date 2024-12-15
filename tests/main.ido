@@ -1,0 +1,11 @@
+// Mashup of almost anything i can think of
+
+print "Hello, World!";
+print "Christ is King!";
+
+var boolean = true;
+print boolean;
+
+if(boolean){
+    print 10;
+}

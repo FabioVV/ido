@@ -37,9 +37,13 @@ typedef enum {
     OP_LESS_EQUAL,
     OP_BANG_EQUAL,
 
+    OP_JUMP_IF_FALSE,
+    OP_JUMP,
+
+    OP_LOOP,
+
     OP_RETURN,
     OP_HLT, // Halts the vm
-    OP_ILG, // ilegal op found
 } Opcode;
 
 #if IS32INT
@@ -90,7 +94,11 @@ typedef enum {
 #define ENC_GET_LOCAL(cIndex, r)       (OP_GET_LOCAL << 26)  | (r << 18) | (cIndex & 0x1FFFF)
 #define ENC_SET_LOCAL(rReadFrom, rIndex)            (OP_SET_LOCAL << 26)  | (rReadFrom << 18) | (rIndex & 0x1FFFF)
 
+#define ENC_JUMP() (OP_JUMP << 26)
+#define ENC_JUMP_IF_FALSE(rReadFrom) (OP_JUMP_IF_FALSE << 26) | (rReadFrom << 18)
+#define GET_JUMP_OFFSET(i) (i & 0x3FFFF)
 
+#define ENC_LOOP() (OP_LOOP << 26)
 
 #define ENC_PRINT(rIndex)            (OP_PRINT << 26) | (rIndex & 0x03FFFFFF)
 #define ENC_RETURN                   (OP_RETURN << 26) 

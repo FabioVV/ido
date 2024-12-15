@@ -9,8 +9,7 @@ typedef struct {
     int line;
 } Scanner;
 
-Scanner* initScanner();
-void initScannerSource(Scanner* sc, const char* source);
+Scanner* initScanner(const char* source);
 void freeScanner(Scanner* sc);
 
 Token scanToken(Scanner* sc);

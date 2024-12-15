@@ -6,15 +6,12 @@
 #include "common.h"
 #include "memory.h"
 
-Scanner* initScanner(){
+Scanner* initScanner(const char* source){
     Scanner* sc = ALLOCATESTRUCT(Scanner);
-    sc->line = 1;
-    return sc;
-}
-
-void initScannerSource(Scanner* sc, const char* source){
     sc->start = source;
     sc->current = source;
+    sc->line = 1;
+    return sc;
 }
 
 void freeScanner(Scanner* sc){
@@ -137,7 +134,7 @@ static TokenType identifierType(Scanner* sc){
     {
     case 'a': return checkKeyword(sc, 1, 2, "nd", T_AND);
     case 'e': return checkKeyword(sc, 1, 3, "lse", T_ELSE);
-    case 'i': return checkKeyword(sc, 1, 1, "F", T_IF);
+    case 'i': return checkKeyword(sc, 1, 1, "f", T_IF);
     case 'f':
         if(sc->current - sc->start > 1){
             switch (*(sc->start + 1))

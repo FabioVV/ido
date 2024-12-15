@@ -7,7 +7,7 @@ become really slow.
 
 Spilling: Need to thing about this later.
 
-Result register: When i allocated result registers, they are never freed, meaning as the program runs,
-the less and less registers i have available. Need to fix
+Result register: When result registers are allocated, they are never freed, meaning as the program runs,
+the less and less registers the program has available. Need to fix
 
-Local vars: Currently being implemented. Will use registers for them.
+Local vars: Done.
