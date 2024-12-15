@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include "instruction.h"
 #include "table.h"
+#include "parser.h"
 
 #define REGISTERS_NUM 256
 #define INVALID_REGISTER ((ido_uint32)-1)
@@ -32,7 +33,7 @@ typedef struct{
   Obj* objects;
 } TVM;
 
-void initVM(TVM* tvm);
+TVM* initVM();
 void freeVM(TVM* tvm);
 ido_uint32 allocR(TVM* tvm);
 void freeR(TVM* tvm, ido_uint32 r);
@@ -40,7 +41,7 @@ ido_uint32 getLastAllocatedRegister(TVM* tvm);
 ido_uint32 getLastRegisterResult(TVM* tvm);
 void setLastAllocatedRegister(TVM* tvm, ido_uint32 r);
 void setLastRegisterResult(TVM* tvm, ido_uint32 r);
-InterpretResult interpret(TVM* tvm, const char* source);
+InterpretResult interpret(TVM* tvm, Scanner* sc, Parser* p);
 
 
 #endif 

@@ -3,18 +3,18 @@
 
 #include <stdio.h>
 #include <string.h>
-#include "lexer.h"
 #include "common.h"
 #include "memory.h"
 
-Scanner* initScanner(const char* source){
-    Scanner* sc = malloc(sizeof(Scanner));
-    if(sc == NULL) exit(1);
+Scanner* initScanner(){
+    Scanner* sc = ALLOCATESTRUCT(Scanner);
+    sc->line = 1;
+    return sc;
+}
+
+void initScannerSource(Scanner* sc, const char* source){
     sc->start = source;
     sc->current = source;
-    sc->line = 1;
-
-    return sc;
 }
 
 void freeScanner(Scanner* sc){

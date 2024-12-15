@@ -1,10 +1,12 @@
 #ifndef H_COMPILER
 #define H_COMPILER
 
-#include "tvm.h"
 #include "token.h"
 #include "common.h"
 #include "lexer.h"
+#include "parser.h"
+#include "tvm.h"
+
 
 #define LOCALS_NUM 200
 
@@ -32,16 +34,8 @@ typedef struct {
     Local locals[LOCALS_NUM];// What a strange limit...
     int localCount;
     int scopeDepth;
-} Compiler;
-
-typedef struct {
-    Token current;
-    Token previous;
-    bool hadError;
-    bool panicMode;
-
     TVM* tvm;
-} Parser;
+} Compiler;
 
 typedef void (*ParseFn)(Parser *p, Scanner *sc, Compiler* c, bool canAssign);
 
@@ -51,9 +45,8 @@ typedef struct {
     Precedence precedence;
 } ParseRule;
 
-Compiler* initCompiler();
-void freeCompiler(Compiler* compiler);
-bool compile(const char* source, Program* program, TVM* tvm);
-Parser* initParser(TVM* tvm);
+Compiler* initCompiler(TVM* tvm);
+void freeCompiler(Compiler* c);
+bool compile(Program* program, Scanner* sc, Parser* p, TVM* tvm);
 
 #endif

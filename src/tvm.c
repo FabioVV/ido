@@ -6,15 +6,13 @@
 #include <stdio.h>
 #include <string.h>
 #include "common.h"
-#include "tvm.h"
-#include "instruction.h"
 #include "compiler.h"
-#include "value.h"
 #include "object.h"
 #include "memory.h"
 
 
-void initVM(TVM* tvm){
+TVM* initVM(){
+    TVM* tvm = ALLOCATESTRUCT(TVM);
     for (int i = 0; i < REGISTERS_NUM; i++) {
         tvm->registers[i] = NIL_VAL();
         tvm->free_registers[i] = i;  // All registers are initially free (may change)
@@ -27,11 +25,14 @@ void initVM(TVM* tvm){
     tvm->objects = NULL;
     initTable(&tvm->strings);
     initTable(&tvm->globals);
+
+    return tvm;
 }
 
 void freeVM(TVM* tvm){
     freeTable(&tvm->strings);
     freeTable(&tvm->globals);
+    FREE(TVM, tvm);
 }
 
 static void runtimeErr(TVM* tvm, const char* format, ...){
@@ -324,11 +325,11 @@ static InterpretResult runVM(TVM* tvm){
     #undef GET_REGISTER_VALUE
 }
 
-InterpretResult interpret(TVM* tvm, const char* source){
+InterpretResult interpret(TVM* tvm, Scanner* sc, Parser* p){
     Program program;
     initProgram(&program);
 
-    if(!compile(source, &program, tvm)){
+    if(!compile(&program, sc, p, tvm)){
         freeProgram(&program);
         return INTERPRET_COMPILE_ERROR;
     }

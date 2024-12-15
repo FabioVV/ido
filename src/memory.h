@@ -7,6 +7,9 @@
 #define ALLOCATE(type, count) \
     (type*)reallocate(NULL, 0, sizeof(type) * count)
 
+#define ALLOCATESTRUCT(type) \
+    (type*)reallocate(NULL, 0, sizeof(type))
+
 #define FREE(type, pointer) reallocate(pointer, sizeof(type), 0)
 
 #define FREE_ARRAY(type, pointer, oldCount) \

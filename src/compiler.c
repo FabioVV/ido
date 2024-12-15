@@ -21,22 +21,17 @@ static void declaration(Parser *p, Scanner *sc, Compiler* c);
 
 Program* compilingProgram;
 
-Parser* initParser(TVM* tvm){
-    Parser* p = malloc(sizeof(Parser));
-    if(p == NULL) exit(1);
-    p->tvm = tvm;
-    return p;
-}
 
-Compiler* initCompiler(){
-    Compiler* c = malloc(sizeof(Compiler));
+Compiler* initCompiler(TVM* tvm){
+    Compiler* c = ALLOCATESTRUCT(Compiler);
     c->localCount = 0;
     c->scopeDepth = 0;
+    c->tvm = tvm;
     return c;
 }
 
-void freeCompiler(Compiler* compiler){
-
+void freeCompiler(Compiler* c){
+    FREE(Compiler, c);
 }
 
 static Program* currentProgram(){
@@ -86,7 +81,7 @@ static void endScope(Parser *p, Compiler* c){
     c->scopeDepth--;
     while(c->localCount > 0 && c->locals[c->localCount - 1].depth > c->scopeDepth){
         int regIndex = c->locals[c->localCount - 1].registerIndex;
-        freeR(p->tvm, regIndex);
+        freeR(c->tvm, regIndex);
         c->localCount--;
     }
 }
@@ -129,11 +124,11 @@ static ido_uint32 createConstant(Parser* p, Value v){
     return constantIndex;
 }
 
-static ido_uint32 emitConstant(Parser *p, Value v){
+static ido_uint32 emitConstant(Parser *p, Compiler* c, Value v){
     ido_uint32 constantIndex = createConstant(p, v);
-    ido_uint32 r = allocR(p->tvm); 
+    ido_uint32 r = allocR(c->tvm);
     
-    setLastAllocatedRegister(p->tvm, r);
+    setLastAllocatedRegister(c->tvm, r);
     writeToProgram(currentProgram(), ENC_CONSTANT(constantIndex, r), p->previous.line);
 
     return constantIndex;
@@ -162,8 +157,8 @@ static void parsePrecedence(Parser *p, Scanner *sc, Compiler* c, Precedence prec
     }
 }
 
-static ido_uint32 identifierConstant(Parser *p, Token* name){
-    return emitConstant(p, OBJ_VAL(copyString(p->tvm, name->start, name->length)));
+static ido_uint32 identifierConstant(Parser *p, Compiler* c, Token* name){
+    return emitConstant(p, c, OBJ_VAL(copyString(c->tvm, name->start, name->length)));
 }
 
 static bool identifiersEqual(Token* a, Token* b){
@@ -189,7 +184,7 @@ static void addLocal(Parser *p, Compiler* c, Token name){
         error(p, "too many local variables in function");
         return;
     }
-    ido_uint32 r = allocR(p->tvm);
+    ido_uint32 r = allocR(c->tvm);
     Local* local = &c->locals[c->localCount++];
     local->name = name;
     local->depth =-1;
@@ -208,12 +203,12 @@ static ido_uint32 parseVariable(Parser *p, Scanner *sc, Compiler* c, const char*
     declareVariable(p, c);
     if(c->scopeDepth > 0) return 0;
 
-    return identifierConstant(p, &p->previous);
+    return identifierConstant(p, c, &p->previous);
 }
 
 static void markInitialized(Parser *p, Compiler* c){
     c->locals[c->localCount - 1].depth = c->scopeDepth;
-    writeToProgram(currentProgram(), ENC_SET_LOCAL(getLastAllocatedRegister(p->tvm), c->locals[c->localCount - 1].registerIndex), p->previous.line);
+    writeToProgram(currentProgram(), ENC_SET_LOCAL(getLastAllocatedRegister(c->tvm), c->locals[c->localCount - 1].registerIndex), p->previous.line);
 }
 
 static void defineVariable(Parser *p, Compiler* c, ido_uint32 global){
@@ -221,17 +216,17 @@ static void defineVariable(Parser *p, Compiler* c, ido_uint32 global){
         markInitialized(p, c);
         return;
     }
-    writeToProgram(currentProgram(), ENC_DEFINE_GLOBAL(getLastAllocatedRegister(p->tvm), global), p->previous.line);
+    writeToProgram(currentProgram(), ENC_DEFINE_GLOBAL(getLastAllocatedRegister(c->tvm), global), p->previous.line);
 }
 
 static void number(Parser *p, Scanner *sc, Compiler* c, bool canAssign){
     double value = strtod(p->previous.start, NULL);
     Value v = DNUMBER_VAL(value);
-    emitConstant(p, v);
+    emitConstant(p, c, v);
 }
 
 static void string(Parser *p, Scanner *sc, Compiler* c, bool canAssign){ // TODO: Translate stuff like \n here
-    emitConstant(p, OBJ_VAL(copyString(p->tvm, p->previous.start + 1, p->previous.length - 2)));
+    emitConstant(p, c, OBJ_VAL(copyString(c->tvm, p->previous.start + 1, p->previous.length - 2)));
 }
 
 static void namedVariable(Parser *p, Scanner *sc, Compiler* c, Token name, bool canAssign){
@@ -240,22 +235,22 @@ static void namedVariable(Parser *p, Scanner *sc, Compiler* c, Token name, bool 
     if(arg != -1){
         if(canAssign && match(p, sc, c, T_EQUAL)){
             expression(p, sc, c);
-            writeToProgram(currentProgram(), ENC_SET_LOCAL(getLastAllocatedRegister(p->tvm), arg), p->previous.line);
+            writeToProgram(currentProgram(), ENC_SET_LOCAL(getLastAllocatedRegister(c->tvm), arg), p->previous.line);
         } else {
-            ido_uint32 resultR = allocR(p->tvm);
+            ido_uint32 resultR = allocR(c->tvm);
             writeToProgram(currentProgram(), ENC_GET_LOCAL(arg, resultR), p->previous.line);
-            setLastAllocatedRegister(p->tvm, resultR);
+            setLastAllocatedRegister(c->tvm, resultR);
         }
     } else {
-        ido_uint32 arg = identifierConstant(p, &name); // TODO: Check bits of encoding and return indexes fo better handling
+        ido_uint32 arg = identifierConstant(p, c, &name); // TODO: Check bits of encoding and return indexes fo better handling
 
         if(canAssign && match(p, sc, c, T_EQUAL)){
             expression(p, sc, c);
-            writeToProgram(currentProgram(), ENC_SET_GLOBAL(getLastAllocatedRegister(p->tvm), arg), p->previous.line);
+            writeToProgram(currentProgram(), ENC_SET_GLOBAL(getLastAllocatedRegister(c->tvm), arg), p->previous.line);
         } else {
-            ido_uint32 resultR = allocR(p->tvm);
+            ido_uint32 resultR = allocR(c->tvm);
             writeToProgram(currentProgram(), ENC_GET_GLOBAL(arg, resultR), p->previous.line);
-            setLastAllocatedRegister(p->tvm, resultR);
+            setLastAllocatedRegister(c->tvm, resultR);
         }
     }
     
@@ -269,22 +264,22 @@ static void unary(Parser *p, Scanner *sc, Compiler* c, bool canAssign){
     TokenType opType = p->previous.type;
     parsePrecedence(p, sc, c, PREC_UNARY);
 
-    if(p->tvm->last_allocated_register == -1){ // TODO: very hacky. If there is not last allocated it means the user
+    if(c->tvm->last_allocated_register == -1){ // TODO: very hacky. If there is not last allocated it means the user
         return;                                // has entered something like ! or - without a proceeding operator
     }                                          // it should have stopped before, i dont know how it got here
 
     switch (opType)
     {
     case T_MINUS: 
-        writeToProgram(currentProgram(), ENC_NEG(getLastAllocatedRegister(p->tvm)), p->previous.line);
+        writeToProgram(currentProgram(), ENC_NEG(getLastAllocatedRegister(c->tvm)), p->previous.line);
         break;
     case T_BANG:
-        writeToProgram(currentProgram(), ENC_NOT(getLastAllocatedRegister(p->tvm)), p->previous.line);
+        writeToProgram(currentProgram(), ENC_NOT(getLastAllocatedRegister(c->tvm)), p->previous.line);
         break;
     default: return;
     }
 
-    setLastAllocatedRegister(p->tvm, getLastAllocatedRegister(p->tvm));
+    setLastAllocatedRegister(c->tvm, getLastAllocatedRegister(c->tvm));
 
 }
 
@@ -305,13 +300,13 @@ static void varDeclaration(Parser *p, Scanner *sc, Compiler* c){
     if(match(p, sc, c, T_EQUAL)){
         expression(p, sc, c); // its going to set a register to the initial val of the var eg: var a = "test";  the string "test" being the initial val here
     }  else {
-        ido_uint32 resultR = allocR(p->tvm); 
+        ido_uint32 resultR = allocR(c->tvm);
         writeToProgram(currentProgram(), ENC_NIL(resultR), p->previous.line); // else it does not have a initial value, allocate a nil instead
-        setLastAllocatedRegister(p->tvm, resultR);
+        setLastAllocatedRegister(c->tvm, resultR);
     }
     consume(p, sc, c, T_SEMICOLON, "expect ';' after var declaration");
     defineVariable(p, c, global);
-    freeR(p->tvm, getLastAllocatedRegister(p->tvm));
+    freeR(c->tvm, getLastAllocatedRegister(c->tvm));
 }
 
 
@@ -319,14 +314,14 @@ static void varDeclaration(Parser *p, Scanner *sc, Compiler* c){
 static void expressionStatement(Parser *p, Scanner *sc, Compiler* c){
     expression(p, sc, c);
     consume(p, sc, c, T_SEMICOLON, "expect ';' after expression");
-    freeR(p->tvm, getLastAllocatedRegister(p->tvm));
+    freeR(c->tvm, getLastAllocatedRegister(c->tvm));
 }
 
 static void printStatement(Parser *p, Scanner *sc, Compiler* c){
     expression(p, sc, c);
     consume(p, sc, c, T_SEMICOLON, "expect ';' after value");
 
-    writeToProgram(currentProgram(), ENC_PRINT(getLastAllocatedRegister(p->tvm)), p->previous.line);
+    writeToProgram(currentProgram(), ENC_PRINT(getLastAllocatedRegister(c->tvm)), p->previous.line);
 }
 
 static void sync(Parser *p, Scanner *sc, Compiler* c){
@@ -381,11 +376,11 @@ static void binary(Parser *p, Scanner *sc, Compiler* c, bool canAssign){
     TokenType opType = p->previous.type;
     ParseRule* rule = getRule(opType);
 
-    ido_uint32 leftR = getLastAllocatedRegister(p->tvm);
+    ido_uint32 leftR = getLastAllocatedRegister(c->tvm);
     parsePrecedence(p, sc, c, (Precedence)rule->precedence+1);
-    ido_uint32 rightR = getLastAllocatedRegister(p->tvm);
+    ido_uint32 rightR = getLastAllocatedRegister(c->tvm);
     
-    ido_uint32 resultR = allocR(p->tvm);
+    ido_uint32 resultR = allocR(c->tvm);
 
     switch (opType)
     {
@@ -422,14 +417,14 @@ static void binary(Parser *p, Scanner *sc, Compiler* c, bool canAssign){
     default: return;
     }
 
-    freeR(p->tvm, leftR);
-    freeR(p->tvm, rightR);
-    setLastAllocatedRegister(p->tvm, resultR);
+    freeR(c->tvm, leftR);
+    freeR(c->tvm, rightR);
+    setLastAllocatedRegister(c->tvm, resultR);
 
 }
 
 static void literal(Parser *p, Scanner *sc, Compiler* c, bool canAssign){
-    ido_uint32 resultR = allocR(p->tvm);
+    ido_uint32 resultR = allocR(c->tvm);
 
     switch (p->previous.type) {
         case T_TRUE:  writeToProgram(currentProgram(), ENC_TRUE(resultR), p->previous.line); break;
@@ -438,7 +433,7 @@ static void literal(Parser *p, Scanner *sc, Compiler* c, bool canAssign){
         default: return;
     }
 
-    setLastAllocatedRegister(p->tvm, resultR);
+    setLastAllocatedRegister(c->tvm, resultR);
 
 }
 
@@ -487,10 +482,8 @@ static ParseRule* getRule(TokenType t){
     return &rules[t];
 }
 
-bool compile(const char* source, Program* program, TVM* tvm){
-    Scanner* sc = initScanner(source); // TODO: pass them in to compiler, so that they can be freed later
-    Parser* p = initParser(tvm);// free this also
-    Compiler* c = initCompiler();
+bool compile(Program* program, Scanner* sc, Parser* p, TVM* tvm){
+    Compiler* c = initCompiler(tvm);
 
     compilingProgram = program;
 

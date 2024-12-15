@@ -1,10 +1,16 @@
 #include <stdio.h>
-#include "tvm.h"
 #include "sysinf.h"
+#include "ido.h"
 
-void repl(TVM* tvm){
+
+void repl(){
     char line[1024];
     int lc = 1;
+
+    TVM* tvm = initVM();
+    Scanner* sc = initScanner();
+    Parser* p = initParser();
+
     sys_info_print_repl();
     
     for(;;){
@@ -16,16 +22,19 @@ void repl(TVM* tvm){
         }
 
         if(line[0] != '\n' && line[0] != '\0'){
-            interpret(tvm, line);
+            initScannerSource(sc, line);
+            interpret(tvm, sc, p);
         }
         
         lc++;
     }
+
+    freeScanner(sc);
+    freeParser(p);
+    freeVM(tvm);
 }
 
 int main(int argc, const char* argv[]){
-    TVM tvm;
-    initVM(&tvm);
-    repl(&tvm);
+    repl();
     return 0;
 }
