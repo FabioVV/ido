@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include "sysinf.h"
 #include "ido.h"
+#include "tvm.h"
 
 
 static void repl(){
@@ -72,6 +73,7 @@ static char* readFile(const char* path){
     return buffer;
 }
 
+
 static void runFile(const char* path){
     TVM* tvm = initVM();
     Parser* p = initParser();
@@ -86,6 +88,9 @@ static void runFile(const char* path){
     if(result == INTERPRET_COMPILE_ERROR) exit(65);
     if(result == INTERPRET_RUNTIME_ERROR) exit(70);
 }
+
+
+
 
 int main(int argc, const char* argv[]){
     if(argc == 1){

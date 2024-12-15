@@ -9,3 +9,23 @@ print boolean;
 if(boolean){
     print 10;
 }
+
+var a = "God is ";
+var b = "Good!";
+
+print a + b + "!!!";
+
+print a;
+print b;
+
+var t = 1;
+
+{
+    var c = 5;
+    print c + 2; // 7
+    t = t + c + 1;
+}
+
+print t; // 7
+
+//print c; // should produce an error if uncommented

@@ -126,8 +126,9 @@ static ido_uint32 createConstant(Parser* p, Value v){
 
 static ido_uint32 emitConstant(Parser *p, Compiler* c, Value v){
     ido_uint32 constantIndex = createConstant(p, v);
+
     ido_uint32 r = allocR(c->tvm);
-    
+
     setLastAllocatedRegister(c->tvm, r);
     writeToProgram(currentProgram(), ENC_CONSTANT(constantIndex, r), p->previous.line);
 
@@ -178,6 +179,7 @@ static void parsePrecedence(Parser *p, Scanner *sc, Compiler* c, Precedence prec
     if(canAssign && match(p, sc, c, T_EQUAL)){
         error(p, "invalid assignment target");
     }
+
 }
 
 static ido_uint32 identifierConstant(Parser *p, Compiler* c, Token* name){
@@ -273,6 +275,7 @@ static void namedVariable(Parser *p, Scanner *sc, Compiler* c, Token name, bool 
         } else {
             ido_uint32 resultR = allocR(c->tvm);
             writeToProgram(currentProgram(), ENC_GET_GLOBAL(arg, resultR), p->previous.line);
+            freeR(c->tvm, c->tvm->last_allocated_register);
             setLastAllocatedRegister(c->tvm, resultR);
         }
     }
@@ -302,6 +305,7 @@ static void unary(Parser *p, Scanner *sc, Compiler* c, bool canAssign){
     default: return;
     }
 
+    freeR(c->tvm, c->tvm->last_allocated_register);
     setLastAllocatedRegister(c->tvm, getLastAllocatedRegister(c->tvm));
 
 }
@@ -325,6 +329,7 @@ static void varDeclaration(Parser *p, Scanner *sc, Compiler* c){
     }  else {
         ido_uint32 resultR = allocR(c->tvm);
         writeToProgram(currentProgram(), ENC_NIL(resultR), p->previous.line); // else it does not have a initial value, allocate a nil instead
+        freeR(c->tvm, c->tvm->last_allocated_register);
         setLastAllocatedRegister(c->tvm, resultR);
     }
     consume(p, sc, c, T_SEMICOLON, "expect ';' after var declaration");
@@ -358,13 +363,16 @@ static void ifStatement(Parser *p, Scanner *sc, Compiler* c){
     }
 
     patchJump(p, elseJump);
+    freeR(c->tvm, getLastAllocatedRegister(c->tvm)); // new, need to check if it works
+
 }
 
 static void printStatement(Parser *p, Scanner *sc, Compiler* c){
     expression(p, sc, c);
-    consume(p, sc, c, T_SEMICOLON, "expect ';' after value");
 
+    consume(p, sc, c, T_SEMICOLON, "expect ';' after value");
     writeToProgram(currentProgram(), ENC_PRINT(getLastAllocatedRegister(c->tvm)), p->previous.line);
+
 }
 
 static void sync(Parser *p, Scanner *sc, Compiler* c){
@@ -410,9 +418,11 @@ static void statement(Parser *p, Scanner *sc, Compiler* c){
     } else {
         expressionStatement(p, sc, c);
     }
+
 }
 
 static void inline grouping(Parser *p, Scanner *sc, Compiler* c, bool canAssign){
+    // maybe a free here?
     expression(p, sc, c);
     consume(p, sc, c, T_RIGHT_PAREN, "expect ')' after expression");
 }
@@ -424,7 +434,8 @@ static void binary(Parser *p, Scanner *sc, Compiler* c, bool canAssign){
     ido_uint32 leftR = getLastAllocatedRegister(c->tvm);
     parsePrecedence(p, sc, c, (Precedence)rule->precedence+1);
     ido_uint32 rightR = getLastAllocatedRegister(c->tvm);
-    
+
+
     ido_uint32 resultR = allocR(c->tvm);
 
     switch (opType)
@@ -449,6 +460,7 @@ static void binary(Parser *p, Scanner *sc, Compiler* c, bool canAssign){
         break;
     case T_PLUS:
         writeToProgram(currentProgram(), ENC_ADD(resultR, leftR, rightR), p->previous.line);
+
         break;
     case T_MINUS:
         writeToProgram(currentProgram(), ENC_SUB(resultR, leftR, rightR), p->previous.line);
@@ -464,6 +476,7 @@ static void binary(Parser *p, Scanner *sc, Compiler* c, bool canAssign){
 
     freeR(c->tvm, leftR);
     freeR(c->tvm, rightR);
+    freeR(c->tvm, c->tvm->last_allocated_register);
     setLastAllocatedRegister(c->tvm, resultR);
 
 }
@@ -478,6 +491,7 @@ static void literal(Parser *p, Scanner *sc, Compiler* c, bool canAssign){
         default: return;
     }
 
+    freeR(c->tvm, c->tvm->last_allocated_register);
     setLastAllocatedRegister(c->tvm, resultR);
 
 }
@@ -494,7 +508,7 @@ ParseRule rules[] = {
   [T_SEMICOLON]     = {NULL,     NULL,   PREC_NONE},
   [T_SLASH]         = {NULL,     binary, PREC_FACTOR},
   [T_STAR]          = {NULL,     binary, PREC_FACTOR},
-  [T_BANG]          = {unary,     NULL,  PREC_NONE},
+  [T_BANG]          = {unary,    NULL,  PREC_NONE},
   [T_BANG_EQUAL]    = {NULL,     binary, PREC_EQUALITY},
   [T_EQUAL]         = {NULL,     NULL,   PREC_NONE},
   [T_EQUAL_EQUAL]   = {NULL,     binary, PREC_EQUALITY},

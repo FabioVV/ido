@@ -2,6 +2,7 @@
 #ifndef C_TANIAVM
 #define C_TANIAVM
 
+#include "tvm.h"
 #include <stdarg.h>
 #include <stdio.h>
 #include <string.h>
@@ -19,7 +20,6 @@ TVM* initVM(){
     }
 
     tvm->last_allocated_register = INVALID_REGISTER; // Initialize with an invalid register
-    tvm->last_result_register = INVALID_REGISTER; // Initialize with an invalid register
     tvm->free_register_count = REGISTERS_NUM;
     tvm->pc = 0;
     tvm->objects = NULL;
@@ -33,6 +33,21 @@ void freeVM(TVM* tvm){
     freeTable(&tvm->strings);
     freeTable(&tvm->globals);
     FREE(TVM, tvm);
+}
+
+ido_uint32 allocR(TVM* tvm){
+    if(tvm->free_register_count == 0){
+        fprintf(stderr, "registererr: no free registers for op\n");
+        exit(1);
+    }
+    return tvm->free_registers[--tvm->free_register_count];
+}
+
+void freeR(TVM* tvm, ido_uint32 r){
+    if(IS_REGISTER_FREE(r)){
+        tvm->free_registers[tvm->free_register_count++] = r;
+
+    }
 }
 
 static void runtimeErr(TVM* tvm, const char* format, ...){
@@ -55,14 +70,6 @@ void setLastAllocatedRegister(TVM* tvm, ido_uint32 r){
     tvm->last_allocated_register = r;
 }
 
-ido_uint32 getLastRegisterResult(TVM* tvm){
-    return tvm->last_result_register;
-}
-
-void setLastRegisterResult(TVM* tvm, ido_uint32 r){
-    tvm->last_result_register = r;
-}
-
 static bool isFalsey(Value v){
     return IS_NIL(v) || (IS_BOOL(v) && !AS_BOOL(v));
 }
@@ -81,19 +88,6 @@ static inline void concatenate(TVM* tvm, Value rA, Value rB, ido_uint32 dstR){
     tvm->registers[dstR] = OBJ_VAL(result);
 }
 
-ido_uint32 allocR(TVM* tvm){
-    if(tvm->free_register_count == 0){
-        fprintf(stderr, "registererr: no free registers for op\n");
-        exit(1);
-    }
-    return tvm->free_registers[--tvm->free_register_count];
-}
-
-void freeR(TVM* tvm, ido_uint32 r){
-    if(IS_REGISTER_FREE(r)){
-        tvm->free_registers[tvm->free_register_count++] = r;
-    }
-}
 
 static InterpretResult runVM(TVM* tvm){
     #define ibreak break
@@ -150,7 +144,6 @@ static InterpretResult runVM(TVM* tvm){
             GET_REGISTER_VALUE(v, tvm->registers[rIndex]);
             printValue(v);
             printf("\n");
-            // printf("Registers after return: %i\n", tvm->free_register_count);
             ibreak;
         }
         case OP_DEFINE_GLOBAL:{
@@ -210,6 +203,7 @@ static InterpretResult runVM(TVM* tvm){
             GET_REGISTER_VALUE(rA, tvm->registers[DEC_REGISTER_RA(i)]);
             Value rB;
             GET_REGISTER_VALUE(rB, tvm->registers[DEC_REGISTER_RB(i)]);
+
 
             if(IS_STRING(rA) && IS_STRING(rB)){
                 concatenate(tvm, rA, rB, rD);

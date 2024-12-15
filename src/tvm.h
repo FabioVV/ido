@@ -24,7 +24,10 @@ typedef struct{
   ido_uint32 free_registers[REGISTERS_NUM];
   ido_uint32 free_register_count;
   ido_uint32 last_allocated_register;
-  ido_uint32 last_result_register;
+
+  ido_uint32 allocated_registers_debug[REGISTERS_NUM];
+  ido_uint32 freed_registers_debug[REGISTERS_NUM];
+
 
   Program* program; 
   ido_uint32* pc;
@@ -38,9 +41,7 @@ void freeVM(TVM* tvm);
 ido_uint32 allocR(TVM* tvm);
 void freeR(TVM* tvm, ido_uint32 r);
 ido_uint32 getLastAllocatedRegister(TVM* tvm);
-ido_uint32 getLastRegisterResult(TVM* tvm);
 void setLastAllocatedRegister(TVM* tvm, ido_uint32 r);
-void setLastRegisterResult(TVM* tvm, ido_uint32 r);
 InterpretResult interpret(TVM* tvm, Scanner* sc, Parser* p);
 
 
