@@ -90,7 +90,7 @@ ido_uint32 allocR(TVM* tvm){
 }
 
 void freeR(TVM* tvm, ido_uint32 r){
-    if(!IS_REGISTER_FREE(r)){
+    if(IS_REGISTER_FREE(r)){
         tvm->free_registers[tvm->free_register_count++] = r;
     }
 }
