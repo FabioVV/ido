@@ -1,5 +1,5 @@
-#ifndef H_COMPILER
-#define H_COMPILER
+#ifndef IDO_COMPILER
+#define IDO_COMPILER
 
 #include "token.h"
 #include "common.h"

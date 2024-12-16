@@ -1,5 +1,5 @@
-#ifndef IDO_IDO
-#define IDO_IDO
+#ifndef IDO
+#define IDO
 
 #include "parser.h"
 #include "compiler.h"

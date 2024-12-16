@@ -1,7 +1,4 @@
 // The tania VM
-#ifndef C_TANIAVM
-#define C_TANIAVM
-
 #include "tvm.h"
 #include <stdarg.h>
 #include <stdio.h>
@@ -14,6 +11,10 @@
 
 TVM* initVM(){
     TVM* tvm = ALLOCATESTRUCT(TVM);
+    if(tvm == NULL){
+        fprintf(stderr, "error allocating tvm: not enough memory");
+        exit(1);
+    }
     for (int i = 0; i < REGISTERS_NUM; i++) {
         tvm->registers[i] = NIL_VAL();
         tvm->free_registers[i] = i;  // All registers are initially free (may change)
@@ -346,6 +347,3 @@ InterpretResult interpret(TVM* tvm, Scanner* sc, Parser* p){
     freeProgram(&program);
     return resultVM;
 }
-
-
-#endif 

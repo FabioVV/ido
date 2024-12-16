@@ -1,5 +1,5 @@
-#ifndef H_INSTRUCTION
-#define H_INSTRUCTION
+#ifndef IDO_INSTRUCTION
+#define IDO_INSTRUCTION
 
 #include "common.h"
 #include "value.h"

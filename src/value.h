@@ -1,5 +1,5 @@
-#ifndef H_VALUE
-#define H_VALUE
+#ifndef IDO_VALUE
+#define IDO_VALUE
 
 #include "common.h"
 

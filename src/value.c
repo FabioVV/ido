@@ -1,6 +1,3 @@
-#ifndef C_VALUE
-#define C_VALUE
-
 #include <stdio.h>
 #include <string.h>
 #include "common.h"
@@ -89,6 +86,3 @@ bool valuesNotEqual(Value a, Value b){
   default: return false; // Unreachable
   }
 }
-
-
-#endif 

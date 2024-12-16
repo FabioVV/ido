@@ -1,5 +1,5 @@
-#ifndef H_OBJECT
-#define H_OBJECT
+#ifndef IDO_OBJECT
+#define IDO_OBJECT
 
 #include "common.h"
 #include "value.h"

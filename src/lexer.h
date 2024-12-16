@@ -1,5 +1,5 @@
-#ifndef H_LEXER
-#define H_LEXER
+#ifndef IDO_LEXER
+#define IDO_LEXER
 
 #include "token.h"
 

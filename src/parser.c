@@ -3,7 +3,10 @@
 
 Parser* initParser(){
     Parser* p = ALLOCATESTRUCT(Parser);
-    if(p == NULL) exit(1);
+     if(p == NULL){
+        fprintf(stderr, "error allocating parser: not enough memory");
+        exit(1);
+    }
     return p;
 }
 

@@ -1,6 +1,3 @@
-#ifndef C_LEXER
-#define C_LEXER
-
 #include <stdio.h>
 #include <string.h>
 #include "common.h"
@@ -8,6 +5,10 @@
 
 Scanner* initScanner(const char* source){
     Scanner* sc = ALLOCATESTRUCT(Scanner);
+    if(sc == NULL){
+        fprintf(stderr, "error allocating lexer: not enough memory");
+        exit(1);
+    }
     sc->start = source;
     sc->current = source;
     sc->line = 1;
@@ -204,5 +205,3 @@ Token scanToken(Scanner* sc){
 
     return errorToken(sc, "unexpected character");
 }
-
-#endif

@@ -1,6 +1,3 @@
-#ifndef C_INSTRUCTION
-#define C_INSTRUCTION
-
 #include "instruction.h"
 #include "memory.h"
 #include <stdio.h>
@@ -39,6 +36,3 @@ int addConstant(Program* prog, Value value){
     writeValueArray(&prog->constants, value);
     return prog->constants.count - 1;
 }
-
-
-#endif

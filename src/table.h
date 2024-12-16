@@ -1,5 +1,5 @@
-#ifndef C_TABLE
-#define C_TABLE
+#ifndef IDO_TABLE
+#define IDO_TABLE
 
 #include "common.h"
 #include "value.h"

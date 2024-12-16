@@ -1,6 +1,3 @@
-#ifndef C_MEMORY
-#define C_MEMORY
-
 #include "memory.h"
 #include "object.h"
 
@@ -37,6 +34,3 @@ void freeObjects(TVM* tvm){
     object = next;
   }
 }   
-
-
-#endif

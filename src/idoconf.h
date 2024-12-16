@@ -1,5 +1,5 @@
-#ifndef H_IDOCONF
-#define H_IDOCONF
+#ifndef IDO_IDOCONF
+#define IDO_IDOCONF
 
 #include <limits.h>
 #include <stddef.h>

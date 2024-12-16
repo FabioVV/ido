@@ -1,5 +1,5 @@
-#ifndef H_MEMORY
-#define H_MEMORY
+#ifndef IDO_MEMORY
+#define IDO_MEMORY
 
 #include "common.h"
 #include "tvm.h"

@@ -1,5 +1,5 @@
-#ifndef H_TANIAVM
-#define H_TANIAVM
+#ifndef IDO_TANIAVM
+#define IDO_TANIAVM
 
 #include <stdio.h>
 #include "instruction.h"

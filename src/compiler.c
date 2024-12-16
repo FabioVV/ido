@@ -1,6 +1,3 @@
-#ifndef C_COMPILER
-#define C_COMPILER
-
 #include <stdio.h>
 #include <string.h>
 #include "memory.h"
@@ -21,9 +18,12 @@ static void declaration(Parser *p, Scanner *sc, Compiler* c);
 
 Program* compilingProgram;
 
-
 Compiler* initCompiler(TVM* tvm){
     Compiler* c = ALLOCATESTRUCT(Compiler);
+    if(c == NULL){
+        fprintf(stderr, "error allocating compiler: not enough memory");
+        exit(1);
+    }
     c->localCount = 0;
     c->scopeDepth = 0;
     c->tvm = tvm;
@@ -559,5 +559,3 @@ bool compile(Program* program, Scanner* sc, Parser* p, TVM* tvm){
 
     return !p->hadError;
 }
-
-#endif

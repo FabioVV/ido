@@ -1,5 +1,5 @@
-#ifndef H_COMMON
-#define H_COMMON
+#ifndef IDO_COMMON
+#define IDO_COMMON
 
 // Definition of some headers that will be used through the whole program
 

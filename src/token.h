@@ -1,5 +1,5 @@
-#ifndef H_TOKEN
-#define H_TOKEN
+#ifndef IDO_TOKEN
+#define IDO_TOKEN
 
 typedef enum {
     T_INT, // 1, 2, 3 ...
