@@ -43,6 +43,6 @@ ido_uint32 getLastAllocatedRegister(TVM* tvm);
 void setLastAllocatedRegister(TVM* tvm, ido_uint32 r);
 InterpretResult interpret(TVM* tvm, Scanner* sc, Parser* p);
 
-ido_uint32 LinearScanRegisterAllocation(TVM* tvm);
+
 
 #endif 

@@ -30,10 +30,6 @@ TVM* initVM(){
     return tvm;
 }
 
-ido_uint32 LinearScanRegisterAllocation(TVM* tvm){
-    
-}
-
 void freeVM(TVM* tvm){
     freeTable(&tvm->strings);
     freeTable(&tvm->globals);

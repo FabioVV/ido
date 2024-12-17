@@ -34,10 +34,17 @@ typedef struct {
     ido_uint32 start;
     ido_uint32 end;
     uint8_t registerIndex;
+} Intervals;
+
+typedef struct {
+    int capacity;
+    int count;
+    Intervals* intervals;
 } LiveInterval;
 
 typedef struct {
     Local locals[LOCALS_NUM];// What a strange limit...
+    LiveInterval liveIntervals; 
     int localCount;
     int scopeDepth;
     TVM* tvm;
@@ -54,5 +61,11 @@ typedef struct {
 Compiler* initCompiler(TVM* tvm);
 void freeCompiler(Compiler* c);
 bool compile(Program* program, Scanner* sc, Parser* p, TVM* tvm);
+ido_uint32 LinearScanRegisterAllocation(Compiler* c, ido_uint32 start, ido_uint32 end);
+
+
+void initIntervalArray(LiveInterval* array);
+void writeIntervalArray(LiveInterval* array, ido_uint32 r, ido_uint32 start, ido_uint32 end);
+void freeIntervalArray(LiveInterval* array);
 
 #endif

@@ -18,6 +18,43 @@ static void declaration(Parser *p, Scanner *sc, Compiler* c);
 
 Program* compilingProgram;
 
+void initIntervalArray(LiveInterval* array){
+    array->capacity = 0;
+    array->count = 0;
+    array->intervals = NULL;
+}
+
+void writeIntervalArray(LiveInterval* array, ido_uint32 r, ido_uint32 start, ido_uint32 end){
+    if(array->capacity < array->count + 1){
+        int oldCap = array->capacity;
+        array->capacity = GROW_CAPACITY(oldCap);
+        array->intervals = GROW_ARRAY(Intervals, array->intervals, oldCap, array->capacity);
+    }
+
+    Intervals l;
+    l.end = end;
+    l.start = start;
+    l.registerIndex = r;
+
+    array->intervals[array->count] = l;
+    array->count++;
+
+}
+void freeIntervalArray(LiveInterval* array){
+    FREE_ARRAY(LiveInterval, array->intervals, array->capacity);
+    initIntervalArray(array);
+}
+
+static int compareStart(const void *a, const void *b){
+    Intervals *A = (Intervals *)a;
+    Intervals *B = (Intervals *)b;
+    return (A->start - B->start);
+}
+
+static inline void sortIntervalsByStart(LiveInterval* array){
+    qsort(array->intervals, array->count, sizeof(array->intervals), compareStart);
+}
+
 Compiler* initCompiler(TVM* tvm){
     Compiler* c = ALLOCATESTRUCT(Compiler);
     if(c == NULL){
@@ -27,10 +64,23 @@ Compiler* initCompiler(TVM* tvm){
     c->localCount = 0;
     c->scopeDepth = 0;
     c->tvm = tvm;
+    initIntervalArray(&c->liveIntervals);
+
     return c;
 }
 
+ido_uint32 LinearScanRegisterAllocation(Compiler* c, ido_uint32 start, ido_uint32 end){
+    sortIntervalsByStart(&c->liveIntervals);
+    addLiveInterval(c, 0, start , end);
+
+    // if(c->liveIntervals.intervals != NULL){
+        
+    // }
+
+}
+
 void freeCompiler(Compiler* c){
+    freeIntervalArray(&c->liveIntervals);
     FREE(Compiler, c);
 }
 
@@ -71,6 +121,10 @@ static void inline emitReturn(Parser* p){
 
 static void endCompilation(Parser* p){
     emitReturn(p);
+}
+
+static inline void addLiveInterval(Compiler* c, ido_uint32 r, ido_uint32 start, ido_uint32 end){
+    writeIntervalArray(&c->liveIntervals, r, start, end);
 }
 
 static void beginScope(Compiler* c){
