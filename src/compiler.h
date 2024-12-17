@@ -8,7 +8,7 @@
 #include "tvm.h"
 
 
-#define LOCALS_NUM 200
+#define LOCALS_NUM 250
 
 typedef enum {
     PREC_NONE,
@@ -29,6 +29,12 @@ typedef struct {
     int depth;
     uint8_t registerIndex;
 } Local;
+
+typedef struct {
+    ido_uint32 start;
+    ido_uint32 end;
+    uint8_t registerIndex;
+} LiveInterval;
 
 typedef struct {
     Local locals[LOCALS_NUM];// What a strange limit...

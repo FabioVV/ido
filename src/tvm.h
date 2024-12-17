@@ -28,7 +28,6 @@ typedef struct{
   ido_uint32 allocated_registers_debug[REGISTERS_NUM];
   ido_uint32 freed_registers_debug[REGISTERS_NUM];
 
-
   Program* program; 
   ido_uint32* pc;
   Table strings;
@@ -44,5 +43,6 @@ ido_uint32 getLastAllocatedRegister(TVM* tvm);
 void setLastAllocatedRegister(TVM* tvm, ido_uint32 r);
 InterpretResult interpret(TVM* tvm, Scanner* sc, Parser* p);
 
+ido_uint32 LinearScanRegisterAllocation(TVM* tvm);
 
 #endif 
