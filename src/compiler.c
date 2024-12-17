@@ -242,6 +242,7 @@ static void defineVariable(Parser *p, Compiler* c, ido_uint32 global){
         return;
     }
     writeToProgram(currentProgram(), ENC_DEFINE_GLOBAL(getLastAllocatedRegister(c->tvm), global), p->previous.line);
+    
 }
 
 static void number(Parser *p, Scanner *sc, Compiler* c, bool canAssign){
@@ -264,14 +265,15 @@ static void namedVariable(Parser *p, Scanner *sc, Compiler* c, Token name, bool 
         } else {
             ido_uint32 resultR = allocR(c->tvm);
             writeToProgram(currentProgram(), ENC_GET_LOCAL(arg, resultR), p->previous.line);
+            
             setLastAllocatedRegister(c->tvm, resultR);
         }
     } else {
         ido_uint32 arg = identifierConstant(p, c, &name); // TODO: Check bits of encoding and return indexes fo better handling
-
         if(canAssign && match(p, sc, c, T_EQUAL)){
             expression(p, sc, c);
             writeToProgram(currentProgram(), ENC_SET_GLOBAL(getLastAllocatedRegister(c->tvm), arg), p->previous.line);
+            freeR(c->tvm, c->tvm->last_allocated_register);
         } else {
             ido_uint32 resultR = allocR(c->tvm);
             writeToProgram(currentProgram(), ENC_GET_GLOBAL(arg, resultR), p->previous.line);
@@ -318,14 +320,17 @@ static void block(Parser *p, Scanner *sc, Compiler* c){
     while(!check(p, sc, T_RIGHT_BRACE) && !check(p, sc, T_EOF)) {
         declaration(p, sc, c);
     }
-
+    
     consume(p, sc, c, T_RIGHT_BRACE, "expect '}' after block");
 }
 
 static void varDeclaration(Parser *p, Scanner *sc, Compiler* c){
+
     ido_uint32 global = parseVariable(p, sc, c, "expect var name"); // Get the constant index of the string name
+
     if(match(p, sc, c, T_EQUAL)){
         expression(p, sc, c); // its going to set a register to the initial val of the var eg: var a = "test";  the string "test" being the initial val here
+        
     }  else {
         ido_uint32 resultR = allocR(c->tvm);
         writeToProgram(currentProgram(), ENC_NIL(resultR), p->previous.line); // else it does not have a initial value, allocate a nil instead
@@ -334,13 +339,13 @@ static void varDeclaration(Parser *p, Scanner *sc, Compiler* c){
     }
     consume(p, sc, c, T_SEMICOLON, "expect ';' after var declaration");
     defineVariable(p, c, global);
-    freeR(c->tvm, getLastAllocatedRegister(c->tvm));
+    freeR(c->tvm, c->tvm->last_allocated_register);
 }
 
 static void expressionStatement(Parser *p, Scanner *sc, Compiler* c){
     expression(p, sc, c);
     consume(p, sc, c, T_SEMICOLON, "expect ';' after expression");
-    freeR(c->tvm, getLastAllocatedRegister(c->tvm));
+    freeR(c->tvm, c->tvm->last_allocated_register);
 }
 
 static void ifStatement(Parser *p, Scanner *sc, Compiler* c){
@@ -349,30 +354,27 @@ static void ifStatement(Parser *p, Scanner *sc, Compiler* c){
     consume(p, sc, c, T_RIGHT_PAREN, "expect ')' after condition");
 
     int thenJump = writeJumpIfFalse(p, c);
-    freeR(c->tvm, getLastAllocatedRegister(c->tvm));
+    freeR(c->tvm, c->tvm->last_allocated_register);
 
     statement(p, sc, c);
     int elseJump = writeJump(p, c);
 
 
     patchJump(p, thenJump);
-    freeR(c->tvm, getLastAllocatedRegister(c->tvm));
+    freeR(c->tvm, c->tvm->last_allocated_register);
 
     if(match(p, sc, c, T_ELSE)){
         statement(p, sc, c);
     }
 
     patchJump(p, elseJump);
-    freeR(c->tvm, getLastAllocatedRegister(c->tvm)); // new, need to check if it works
-
+    freeR(c->tvm, c->tvm->last_allocated_register);
 }
 
 static void printStatement(Parser *p, Scanner *sc, Compiler* c){
     expression(p, sc, c);
-
     consume(p, sc, c, T_SEMICOLON, "expect ';' after value");
     writeToProgram(currentProgram(), ENC_PRINT(getLastAllocatedRegister(c->tvm)), p->previous.line);
-
 }
 
 static void sync(Parser *p, Scanner *sc, Compiler* c){
@@ -460,7 +462,6 @@ static void binary(Parser *p, Scanner *sc, Compiler* c, bool canAssign){
         break;
     case T_PLUS:
         writeToProgram(currentProgram(), ENC_ADD(resultR, leftR, rightR), p->previous.line);
-
         break;
     case T_MINUS:
         writeToProgram(currentProgram(), ENC_SUB(resultR, leftR, rightR), p->previous.line);
@@ -478,7 +479,6 @@ static void binary(Parser *p, Scanner *sc, Compiler* c, bool canAssign){
     freeR(c->tvm, rightR);
     freeR(c->tvm, c->tvm->last_allocated_register);
     setLastAllocatedRegister(c->tvm, resultR);
-
 }
 
 static void literal(Parser *p, Scanner *sc, Compiler* c, bool canAssign){
@@ -493,7 +493,6 @@ static void literal(Parser *p, Scanner *sc, Compiler* c, bool canAssign){
 
     freeR(c->tvm, c->tvm->last_allocated_register);
     setLastAllocatedRegister(c->tvm, resultR);
-
 }
 
 ParseRule rules[] = {

@@ -8,6 +8,8 @@ print boolean;
 
 if(boolean){
     print 10;
+} else {
+    print 1;
 }
 
 var a = "God is ";

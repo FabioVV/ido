@@ -1,5 +1,7 @@
 var f = true;
 var s = false;
+var c = nil;
+
 
 if(f){
     print "F var is true";
@@ -13,4 +15,5 @@ if(s){
     print "S var is false";
 }
 
+print "after ifs";
 print "after" + " ifs";
