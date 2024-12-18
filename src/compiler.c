@@ -9,6 +9,7 @@
 #include "instruction.h"
 #include "object.h"
 
+
 // Some forward declarations
 static ParseRule* getRule(TokenType t);
 static void parsePrecedence(Parser *p, Scanner *sc, Compiler* c, Precedence prec);
@@ -45,6 +46,10 @@ void freeIntervalArray(LiveInterval* array){
     initIntervalArray(array);
 }
 
+static inline void addLiveInterval(Compiler* c, ido_uint32 r, ido_uint32 start, ido_uint32 end){
+    writeIntervalArray(&c->liveIntervals, r, start, end);
+}
+
 static int compareStart(const void *a, const void *b){
     Intervals *A = (Intervals *)a;
     Intervals *B = (Intervals *)b;
@@ -52,7 +57,7 @@ static int compareStart(const void *a, const void *b){
 }
 
 static inline void sortIntervalsByStart(LiveInterval* array){
-    qsort(array->intervals, array->count, sizeof(array->intervals), compareStart);
+    qsort(array->intervals, array->count, sizeof(&array->intervals), compareStart);
 }
 
 Compiler* initCompiler(TVM* tvm){
@@ -67,16 +72,6 @@ Compiler* initCompiler(TVM* tvm){
     initIntervalArray(&c->liveIntervals);
 
     return c;
-}
-
-ido_uint32 LinearScanRegisterAllocation(Compiler* c, ido_uint32 start, ido_uint32 end){
-    sortIntervalsByStart(&c->liveIntervals);
-    addLiveInterval(c, 0, start , end);
-
-    // if(c->liveIntervals.intervals != NULL){
-        
-    // }
-
 }
 
 void freeCompiler(Compiler* c){
@@ -121,10 +116,6 @@ static void inline emitReturn(Parser* p){
 
 static void endCompilation(Parser* p){
     emitReturn(p);
-}
-
-static inline void addLiveInterval(Compiler* c, ido_uint32 r, ido_uint32 start, ido_uint32 end){
-    writeIntervalArray(&c->liveIntervals, r, start, end);
 }
 
 static void beginScope(Compiler* c){
@@ -606,6 +597,7 @@ bool compile(Program* program, Scanner* sc, Parser* p, TVM* tvm){
     while(!match(p, sc, c, T_EOF)){
         declaration(p, sc, c);
     }
+
 
     endCompilation(p);
     freeCompiler(c);
