@@ -17,7 +17,7 @@ TVM* initVM(){
     }
     for (int i = 0; i < REGISTERS_NUM; i++) {
         tvm->registers[i] = NIL_VAL();
-        tvm->free_registers[i] = i;  // All registers are initially free (may change)
+        tvm->allocatedRegisters[i] = false;  // All registers are initially free (may change)
     }
 
     tvm->last_allocated_register = INVALID_REGISTER; // Initialize with an invalid register
@@ -36,19 +36,29 @@ void freeVM(TVM* tvm){
     FREE(TVM, tvm);
 }
 
-ido_uint32 allocR(TVM* tvm){
-    if(tvm->free_register_count == 0){
-        fprintf(stderr, "registererr: no free registers for op\n");
-        exit(1);
-    }
-    
-    return tvm->free_registers[--tvm->free_register_count];
+void freeR(TVM* tvm, ido_uint32 r){
+    // if(IS_REGISTER_FREE(r) && !tvm->allocatedRegisters[r]){
+    //     fprintf(stderr, "attempted to free unallocated or invalid register R%d\n", r);
+    //     exit(1);
+    // }
+
+    tvm->allocatedRegisters[r] = false;
+    tvm->free_register_count++;
+    printf("free R%d (free: R%d)\n", r, tvm->free_register_count);
 }
 
-void freeR(TVM* tvm, ido_uint32 r){
-    if(IS_REGISTER_FREE(r)){
-        tvm->free_registers[tvm->free_register_count++] = r;
+ido_uint32 allocR(TVM* tvm){
+    for(ido_uint32 i = 0; i < REGISTERS_NUM; i++){
+        if(!tvm->allocatedRegisters[i]){
+            tvm->allocatedRegisters[i] = true;
+            tvm->free_register_count--;
+            tvm->last_allocated_register = i;
+            printf("alloc R%d (free: %d)\n", i, tvm->free_register_count);
+            return i;
+        }
     }
+    fprintf(stderr, "no free registers\n");
+    exit(1);
 }
 
 static void runtimeErr(TVM* tvm, const char* format, ...){

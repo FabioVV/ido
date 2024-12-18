@@ -21,12 +21,9 @@ typedef enum {
 
 typedef struct{
   Value registers[REGISTERS_NUM];
-  ido_uint32 free_registers[REGISTERS_NUM];
+  bool allocatedRegisters[REGISTERS_NUM];
   ido_uint32 free_register_count;
   ido_uint32 last_allocated_register;
-
-  ido_uint32 allocated_registers_debug[REGISTERS_NUM];
-  ido_uint32 freed_registers_debug[REGISTERS_NUM];
 
   Program* program; 
   ido_uint32* pc;

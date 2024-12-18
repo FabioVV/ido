@@ -175,7 +175,6 @@ static ido_uint32 emitConstant(Parser *p, Compiler* c, Value v){
 
     ido_uint32 r = allocR(c->tvm);
     
-    setLastAllocatedRegister(c->tvm, r);
     writeToProgram(currentProgram(), ENC_CONSTANT(constantIndex, r), p->previous.line);
     return constantIndex;
 }
@@ -309,19 +308,15 @@ static void namedVariable(Parser *p, Scanner *sc, Compiler* c, Token name, bool 
         } else {
             ido_uint32 resultR = allocR(c->tvm);
             writeToProgram(currentProgram(), ENC_GET_LOCAL(arg, resultR), p->previous.line);
-            setLastAllocatedRegister(c->tvm, resultR);
         }
     } else {
         ido_uint32 arg = identifierConstant(p, c, &name); // TODO: Check bits of encoding and return indexes fo better handling
         if(canAssign && match(p, sc, c, T_EQUAL)){
             expression(p, sc, c);
             writeToProgram(currentProgram(), ENC_SET_GLOBAL(getLastAllocatedRegister(c->tvm), arg), p->previous.line);
-            freeR(c->tvm, c->tvm->last_allocated_register);
         } else {
             ido_uint32 resultR = allocR(c->tvm);
             writeToProgram(currentProgram(), ENC_GET_GLOBAL(arg, resultR), p->previous.line);
-            freeR(c->tvm, c->tvm->last_allocated_register);
-            setLastAllocatedRegister(c->tvm, resultR);
         }
     }
     
@@ -350,9 +345,6 @@ static void unary(Parser *p, Scanner *sc, Compiler* c, bool canAssign){
     default: return;
     }
 
-    freeR(c->tvm, c->tvm->last_allocated_register);
-    setLastAllocatedRegister(c->tvm, getLastAllocatedRegister(c->tvm));
-
 }
 
 static void expression(Parser *p, Scanner *sc, Compiler* c){
@@ -376,18 +368,14 @@ static void varDeclaration(Parser *p, Scanner *sc, Compiler* c){
     }  else {
         ido_uint32 resultR = allocR(c->tvm);
         writeToProgram(currentProgram(), ENC_NIL(resultR), p->previous.line); // else it does not have a initial value, allocate a nil instead
-        freeR(c->tvm, c->tvm->last_allocated_register);
-        setLastAllocatedRegister(c->tvm, resultR);
     }
     consume(p, sc, c, T_SEMICOLON, "expect ';' after var declaration");
     defineVariable(p, c, global);
-    freeR(c->tvm, c->tvm->last_allocated_register);
 }
 
 static void expressionStatement(Parser *p, Scanner *sc, Compiler* c){
     expression(p, sc, c);
     consume(p, sc, c, T_SEMICOLON, "expect ';' after expression");
-    freeR(c->tvm, c->tvm->last_allocated_register);
 }
 
 static void ifStatement(Parser *p, Scanner *sc, Compiler* c){
@@ -396,27 +384,27 @@ static void ifStatement(Parser *p, Scanner *sc, Compiler* c){
     consume(p, sc, c, T_RIGHT_PAREN, "expect ')' after condition");
 
     int thenJump = writeJumpIfFalse(p, c);
-    freeR(c->tvm, c->tvm->last_allocated_register);
 
     statement(p, sc, c);
     int elseJump = writeJump(p, c);
 
 
     patchJump(p, thenJump);
-    freeR(c->tvm, c->tvm->last_allocated_register);
 
     if(match(p, sc, c, T_ELSE)){
         statement(p, sc, c);
     }
 
     patchJump(p, elseJump);
-    freeR(c->tvm, c->tvm->last_allocated_register);
 }
 
 static void printStatement(Parser *p, Scanner *sc, Compiler* c){
     expression(p, sc, c);
     consume(p, sc, c, T_SEMICOLON, "expect ';' after value");
     writeToProgram(currentProgram(), ENC_PRINT(getLastAllocatedRegister(c->tvm)), p->previous.line);
+    printf("R%d esse\n", getLastAllocatedRegister(c->tvm));
+    freeR(c->tvm, getLastAllocatedRegister(c->tvm));
+
 }
 
 static void sync(Parser *p, Scanner *sc, Compiler* c){
@@ -453,7 +441,6 @@ static void declaration(Parser *p, Scanner *sc, Compiler* c){
 static void statement(Parser *p, Scanner *sc, Compiler* c){
     if(match(p, sc, c, T_PRINT)){
         printStatement(p, sc, c);
-        
     } else if(match(p, sc, c, T_IF)){
         ifStatement(p, sc, c);
     } else if(match(p, sc, c, T_LEFT_BRACE)){
@@ -517,10 +504,6 @@ static void binary(Parser *p, Scanner *sc, Compiler* c, bool canAssign){
     default: return;
     }
 
-    freeR(c->tvm, leftR);
-    freeR(c->tvm, rightR);
-    freeR(c->tvm, c->tvm->last_allocated_register);
-    setLastAllocatedRegister(c->tvm, resultR);
 }
 
 static void literal(Parser *p, Scanner *sc, Compiler* c, bool canAssign){
@@ -533,8 +516,6 @@ static void literal(Parser *p, Scanner *sc, Compiler* c, bool canAssign){
         default: return;
     }
 
-    freeR(c->tvm, c->tvm->last_allocated_register);
-    setLastAllocatedRegister(c->tvm, resultR);
 }
 
 ParseRule rules[] = {
