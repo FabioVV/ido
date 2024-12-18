@@ -39,12 +39,12 @@ void printBytecodeSimple(Program* prog){
         [OP_HLT]    = {"OP_HLT"},
     };
 
-    for(int i = 0; i < prog->count; i++){
-        Instruction i = *pc++;
+    Instruction i ;
+    while((i = *pc++)){
         Opcode o = GET_OPCODE(i);
 
         printf("%x ", i);
         printf("%s\n", opnames[o].opname);
-
     }
+
 }

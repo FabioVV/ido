@@ -9,7 +9,7 @@
 #define REGISTERS_NUM 256
 #define INVALID_REGISTER ((ido_uint32)-1)
 #define IS_REGISTER_VALID(r) ((r) != INVALID_REGISTER)
-#define IS_REGISTER_FREE(r)  ((r) >= 0 && (r) < REGISTERS_NUM)
+#define IS_REGISTER_FREE(r)  ((r) >= 0 && (r) <= REGISTERS_NUM)
 
 typedef enum {
   INTERPRET_OK,

@@ -41,13 +41,13 @@ ido_uint32 allocR(TVM* tvm){
         fprintf(stderr, "registererr: no free registers for op\n");
         exit(1);
     }
+    
     return tvm->free_registers[--tvm->free_register_count];
 }
 
 void freeR(TVM* tvm, ido_uint32 r){
     if(IS_REGISTER_FREE(r)){
         tvm->free_registers[tvm->free_register_count++] = r;
-
     }
 }
 

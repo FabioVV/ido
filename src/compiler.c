@@ -8,6 +8,7 @@
 #include "value.h"
 #include "instruction.h"
 #include "object.h"
+#include "butil.h"
 
 
 // Some forward declarations
@@ -125,7 +126,7 @@ static void beginScope(Compiler* c){
 static void endScope(Parser *p, Compiler* c){
     c->scopeDepth--;
     while(c->localCount > 0 && c->locals[c->localCount - 1].depth > c->scopeDepth){
-        int regIndex = c->locals[c->localCount - 1].registerIndex;
+        int regIndex = c->locals[c->localCount].registerIndex;
         freeR(c->tvm, regIndex);
         c->localCount--;
     }
@@ -173,10 +174,9 @@ static ido_uint32 emitConstant(Parser *p, Compiler* c, Value v){
     ido_uint32 constantIndex = createConstant(p, v);
 
     ido_uint32 r = allocR(c->tvm);
-
+    
     setLastAllocatedRegister(c->tvm, r);
     writeToProgram(currentProgram(), ENC_CONSTANT(constantIndex, r), p->previous.line);
-
     return constantIndex;
 }
 
@@ -287,7 +287,6 @@ static void defineVariable(Parser *p, Compiler* c, ido_uint32 global){
         return;
     }
     writeToProgram(currentProgram(), ENC_DEFINE_GLOBAL(getLastAllocatedRegister(c->tvm), global), p->previous.line);
-    
 }
 
 static void number(Parser *p, Scanner *sc, Compiler* c, bool canAssign){
@@ -310,7 +309,6 @@ static void namedVariable(Parser *p, Scanner *sc, Compiler* c, Token name, bool 
         } else {
             ido_uint32 resultR = allocR(c->tvm);
             writeToProgram(currentProgram(), ENC_GET_LOCAL(arg, resultR), p->previous.line);
-            
             setLastAllocatedRegister(c->tvm, resultR);
         }
     } else {
@@ -375,7 +373,6 @@ static void varDeclaration(Parser *p, Scanner *sc, Compiler* c){
 
     if(match(p, sc, c, T_EQUAL)){
         expression(p, sc, c); // its going to set a register to the initial val of the var eg: var a = "test";  the string "test" being the initial val here
-        
     }  else {
         ido_uint32 resultR = allocR(c->tvm);
         writeToProgram(currentProgram(), ENC_NIL(resultR), p->previous.line); // else it does not have a initial value, allocate a nil instead
@@ -456,6 +453,7 @@ static void declaration(Parser *p, Scanner *sc, Compiler* c){
 static void statement(Parser *p, Scanner *sc, Compiler* c){
     if(match(p, sc, c, T_PRINT)){
         printStatement(p, sc, c);
+        
     } else if(match(p, sc, c, T_IF)){
         ifStatement(p, sc, c);
     } else if(match(p, sc, c, T_LEFT_BRACE)){
@@ -481,7 +479,6 @@ static void binary(Parser *p, Scanner *sc, Compiler* c, bool canAssign){
     ido_uint32 leftR = getLastAllocatedRegister(c->tvm);
     parsePrecedence(p, sc, c, (Precedence)rule->precedence+1);
     ido_uint32 rightR = getLastAllocatedRegister(c->tvm);
-
 
     ido_uint32 resultR = allocR(c->tvm);
 
@@ -598,6 +595,7 @@ bool compile(Program* program, Scanner* sc, Parser* p, TVM* tvm){
         declaration(p, sc, c);
     }
 
+    //printBytecodeSimple(compilingProgram);
 
     endCompilation(p);
     freeCompiler(c);
