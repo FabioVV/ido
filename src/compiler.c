@@ -81,6 +81,7 @@ void setLastAllocatedRegister(Compiler* c, ido_uint32 r){
 
 void freeR(Compiler* c, Parser* p, ido_uint32 r){
     if(p->hadError){
+        // i should reset the registers here, in a REPL session the program can leak registers
         return;
     }
 
@@ -346,6 +347,30 @@ static void defineVariable(Parser *p, Compiler* c, ido_uint32 global){
 
 }
 
+static void and_(Parser *p, Scanner *sc, Compiler* c, bool canAssign){
+    int endJump = writeJumpIfFalse(p, c);
+    if(c->tvm->allocatedRegisters[getLastAllocatedRegister(c)]){
+        freeR(c, p, getLastAllocatedRegister(c));
+    }
+
+    parsePrecedence(p, sc, c, PREC_AND);
+    patchJump(p, endJump);
+}
+
+static void or_(Parser *p, Scanner *sc, Compiler* c, bool canAssign){
+    int elseJump = writeJumpIfFalse(p, c);
+    if(c->tvm->allocatedRegisters[getLastAllocatedRegister(c)]){
+        freeR(c, p, getLastAllocatedRegister(c));
+    }
+
+    int endJump = writeJump(p, c);
+
+    patchJump(p, elseJump);
+
+    parsePrecedence(p, sc, c, PREC_OR);
+    patchJump(p, endJump);
+}
+
 static void number(Parser *p, Scanner *sc, Compiler* c, bool canAssign){
     double value = strtod(p->previous.start, NULL);
     Value v = DNUMBER_VAL(value);
@@ -451,7 +476,10 @@ static void ifStatement(Parser *p, Scanner *sc, Compiler* c){
     consume(p, sc, c, T_RIGHT_PAREN, "expect ')' after condition");
 
     int thenJump = writeJumpIfFalse(p, c);
-    freeR(c, p, getLastAllocatedRegister(c));
+    if(c->tvm->allocatedRegisters[getLastAllocatedRegister(c)]){
+        freeR(c, p, getLastAllocatedRegister(c));
+
+    }
 
     statement(p, sc, c);
     int elseJump = writeJump(p, c);
@@ -584,8 +612,6 @@ static void literal(Parser *p, Scanner *sc, Compiler* c, bool canAssign){
         default: return;
     }
 
-    freeR(c, p, resultR);
-
 }
 
 ParseRule rules[] = {
@@ -600,7 +626,7 @@ ParseRule rules[] = {
   [T_SEMICOLON]     = {NULL,     NULL,   PREC_NONE},
   [T_SLASH]         = {NULL,     binary, PREC_FACTOR},
   [T_STAR]          = {NULL,     binary, PREC_FACTOR},
-  [T_BANG]          = {unary,    NULL,  PREC_NONE},
+  [T_BANG]          = {unary,    NULL,   PREC_NONE},
   [T_BANG_EQUAL]    = {NULL,     binary, PREC_EQUALITY},
   [T_EQUAL]         = {NULL,     NULL,   PREC_NONE},
   [T_EQUAL_EQUAL]   = {NULL,     binary, PREC_EQUALITY},
@@ -612,14 +638,14 @@ ParseRule rules[] = {
   [T_STRING]        = {string,   NULL,   PREC_NONE},
   [T_FLOAT]         = {number,   NULL,   PREC_NONE},
   [T_INT]           = {number,   NULL,   PREC_NONE},
-  [T_AND]           = {NULL,     NULL,   PREC_NONE},
+  [T_AND]           = {NULL,     and_,   PREC_AND},
   [T_ELSE]          = {NULL,     NULL,   PREC_NONE},
   [T_FALSE]         = {literal,  NULL,   PREC_NONE},
   [T_FOR]           = {NULL,     NULL,   PREC_NONE},
   [T_FN]            = {NULL,     NULL,   PREC_NONE},
   [T_IF]            = {NULL,     NULL,   PREC_NONE},
   [T_NIL]           = {literal,  NULL,   PREC_NONE},
-  [T_OR]            = {NULL,     NULL,   PREC_NONE},
+  [T_OR]            = {NULL,     or_,    PREC_OR},
   [T_PRINT]         = {NULL,     NULL,   PREC_NONE},
   [T_RETURN]        = {NULL,     NULL,   PREC_NONE},
   [T_TRUE]          = {literal,  NULL,   PREC_NONE},

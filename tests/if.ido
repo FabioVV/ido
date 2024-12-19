@@ -18,3 +18,16 @@ if(s){
 
 print "after ifs";
 print "after" + " ifs";
+
+
+if(true and true){
+    print "This should be printed to the console";
+}
+
+if(true and false){
+    print "This should not be printed to the console";
+}
+
+
+
+
