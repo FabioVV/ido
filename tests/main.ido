@@ -26,6 +26,8 @@ var t = 1;
     var c = 5;
     print c + 2; // 7
     t = t + c + 1;
+    var k = "constant";
+    print k + " yes KONSTANT";
 }
 
 print t; // 7

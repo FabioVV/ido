@@ -174,7 +174,7 @@ static void beginScope(Compiler* c){
 static void endScope(Parser *p, Compiler* c){
     c->scopeDepth--;
     while(c->localCount > 0 && c->locals[c->localCount - 1].depth > c->scopeDepth){
-        int regIndex = c->locals[c->localCount].registerIndex;
+        int regIndex = c->locals[c->localCount - 1].registerIndex;
         freeR(c, p, regIndex);
         c->localCount--;
     }
@@ -478,7 +478,6 @@ static void ifStatement(Parser *p, Scanner *sc, Compiler* c){
     int thenJump = writeJumpIfFalse(p, c);
     if(c->tvm->allocatedRegisters[getLastAllocatedRegister(c)]){
         freeR(c, p, getLastAllocatedRegister(c));
-
     }
 
     statement(p, sc, c);
