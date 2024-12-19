@@ -86,7 +86,7 @@ void freeR(Compiler* c, Parser* p, ido_uint32 r){
     }
 
     if(!IS_REGISTER_FREE(r) || !c->tvm->allocatedRegisters[r]){
-        fprintf(stderr, "attempted to free unallocated or invalid register R%d\n", r);
+        fprintf(stderr, "attempted to free unallocated or invalid register R%d on line %i\n", r, p->previous.line);
         exit(1);
     }
 
@@ -114,7 +114,7 @@ ido_uint32 ralloc(Compiler* c, Parser* p){
 }
 
 static inline void rfree(Compiler* c, Parser* p,  ido_uint32 r){
-    if(c->tvm->allocatedRegisters[getLastAllocatedRegister(c)]){
+    if(c->tvm->allocatedRegisters[r]){
         freeR(c, p, r);
     }
 }
@@ -185,7 +185,7 @@ static void endScope(Parser *p, Compiler* c){
     c->scopeDepth--;
     while(c->localCount > 0 && c->locals[c->localCount - 1].depth > c->scopeDepth){
         int regIndex = c->locals[c->localCount - 1].registerIndex;
-        freeR(c, p, regIndex);
+        rfree(c, p, regIndex);
         c->localCount--;
     }
 }
@@ -361,11 +361,7 @@ static void defineVariable(Parser *p, Compiler* c, ido_uint32 global){
         markInitialized(p, c);
         return;
     }
-
-
-    if(c->tvm->allocatedRegisters[getLastAllocatedRegister(c)]){
-        freeR(c, p, getLastAllocatedRegister(c));
-    }
+    rfree(c, p, getLastAllocatedRegister(c));
 
     ido_uint32 r = getLastAllocatedRegister(c);
     writeToProgram(currentProgram(), ENC_DEFINE_GLOBAL(r, global), p->previous.line);
@@ -374,9 +370,8 @@ static void defineVariable(Parser *p, Compiler* c, ido_uint32 global){
 
 static void and_(Parser *p, Scanner *sc, Compiler* c, bool canAssign){
     int endJump = writeJumpIfFalse(p, c);
-    if(c->tvm->allocatedRegisters[getLastAllocatedRegister(c)]){
-        freeR(c, p, getLastAllocatedRegister(c));
-    }
+    rfree(c, p, getLastAllocatedRegister(c));
+
 
     parsePrecedence(p, sc, c, PREC_AND);
     patchJump(p, endJump);
@@ -384,9 +379,8 @@ static void and_(Parser *p, Scanner *sc, Compiler* c, bool canAssign){
 
 static void or_(Parser *p, Scanner *sc, Compiler* c, bool canAssign){
     int elseJump = writeJumpIfFalse(p, c);
-    if(c->tvm->allocatedRegisters[getLastAllocatedRegister(c)]){
-        freeR(c, p, getLastAllocatedRegister(c));
-    }
+    rfree(c, p, getLastAllocatedRegister(c));
+
 
     int endJump = writeJump(p, c);
 
@@ -412,7 +406,7 @@ static void namedVariable(Parser *p, Scanner *sc, Compiler* c, Token name, bool 
 
     if(arg != -1){
         if(canAssign && match(p, sc, c, T_EQUAL)){
-            freeR(c, p, getLastAllocatedRegister(c));
+            rfree(c, p, getLastAllocatedRegister(c));
             expression(p, sc, c);
             writeToProgram(currentProgram(), ENC_SET_LOCAL(getLastAllocatedRegister(c), arg), p->previous.line);
         } else {
@@ -423,12 +417,12 @@ static void namedVariable(Parser *p, Scanner *sc, Compiler* c, Token name, bool 
     } else {
         ido_uint32 arg = identifierConstant(p, c, &name); // TODO: Check bits of encoding and return indexes fo better handling
         if(canAssign && match(p, sc, c, T_EQUAL)){
-            freeR(c, p, getLastAllocatedRegister(c));
+            rfree(c, p, getLastAllocatedRegister(c));
             expression(p, sc, c);
             writeToProgram(currentProgram(), ENC_SET_GLOBAL(getLastAllocatedRegister(c), arg), p->previous.line);
 
         } else {
-            freeR(c, p, getLastAllocatedRegister(c));
+            rfree(c, p, getLastAllocatedRegister(c));
             ido_uint32 resultR = ralloc(c, p);
             writeToProgram(currentProgram(), ENC_GET_GLOBAL(arg, resultR), p->previous.line);
         }
@@ -474,7 +468,7 @@ static void block(Parser *p, Scanner *sc, Compiler* c){
 static void varDeclaration(Parser *p, Scanner *sc, Compiler* c){
 
     ido_uint32 global = parseVariable(p, sc, c, "expect var name"); // Get the constant index of the string name
-    freeR(c, p, getLastAllocatedRegister(c));
+    rfree(c, p, getLastAllocatedRegister(c));
 
     if(match(p, sc, c, T_EQUAL)){
         expression(p, sc, c); // its going to set a register to the initial val of the var eg: var a = "test";  the string "test" being the initial val here
@@ -492,7 +486,7 @@ static void varDeclaration(Parser *p, Scanner *sc, Compiler* c){
 static void expressionStatement(Parser *p, Scanner *sc, Compiler* c){
     expression(p, sc, c);
     consume(p, sc, c, T_SEMICOLON, "expect ';' after expression");
-    freeR(c, p, getLastAllocatedRegister(c)); // maybe>?
+    rfree(c, p, getLastAllocatedRegister(c)); // maybe>?
 }
 
 static void ifStatement(Parser *p, Scanner *sc, Compiler* c){
@@ -501,9 +495,7 @@ static void ifStatement(Parser *p, Scanner *sc, Compiler* c){
     consume(p, sc, c, T_RIGHT_PAREN, "expect ')' after condition");
 
     int thenJump = writeJumpIfFalse(p, c);
-    if(c->tvm->allocatedRegisters[getLastAllocatedRegister(c)]){
-        freeR(c, p, getLastAllocatedRegister(c));
-    }
+    rfree(c, p, getLastAllocatedRegister(c));
 
     statement(p, sc, c);
     int elseJump = writeJump(p, c);
@@ -526,9 +518,8 @@ static void whileStatement(Parser *p, Scanner *sc, Compiler* c){
     consume(p, sc, c, T_RIGHT_PAREN, "expect ')' after condition");
     
     int exitJump = writeJumpIfFalse(p, c);
-    if(c->tvm->allocatedRegisters[getLastAllocatedRegister(c)]){
-        freeR(c, p, getLastAllocatedRegister(c));
-    }
+    rfree(c, p, getLastAllocatedRegister(c));
+
     statement(p, sc, c);
     writeLoop(p, c, loopStart);
 
@@ -536,11 +527,58 @@ static void whileStatement(Parser *p, Scanner *sc, Compiler* c){
 
 }   
 
+static void forStatement(Parser *p, Scanner *sc, Compiler* c){
+    beginScope(c);
+
+    consume(p, sc, c, T_LEFT_PAREN, "expect '(' after 'for'");
+    
+    if(match(p, sc, c, T_SEMICOLON)){
+        // no initializer
+    } else if(match(p, sc, c, T_VAR)) {
+        varDeclaration(p , sc , c);
+    } else {
+        expressionStatement(p, sc, c);
+    }
+
+    int loopStart = currentProgram()->count;
+    int exitJump = -1;
+    if(!match(p, sc, c, T_SEMICOLON)){
+        expression(p, sc , c);
+        consume(p, sc, c, T_SEMICOLON, "expect ';' after loop condition");
+
+        exitJump = writeJumpIfFalse(p, c);
+        rfree(c, p, getLastAllocatedRegister(c));
+
+
+    }
+
+    if(!match(p, sc, c, T_RIGHT_PAREN)){
+        int bodyJump  =writeJump(p, c);
+        int incrementStart = currentProgram()->count; // offset of the increment instruction
+        expression(p, sc, c);
+        rfree(c, p, getLastAllocatedRegister(c));
+        consume(p, sc, c, T_RIGHT_PAREN, "expect ')' after 'for' clauses");
+
+        writeLoop(p, c, loopStart);
+        loopStart = incrementStart;
+        patchJump(p, bodyJump);
+    }   
+
+    statement(p, sc , c);
+    writeLoop(p, c, loopStart);
+
+    if(exitJump != - 1){
+        patchJump(p, exitJump);
+    }
+
+    endScope(p, c);
+}
+
 static void printStatement(Parser *p, Scanner *sc, Compiler* c){
     expression(p, sc, c);
     consume(p, sc, c, T_SEMICOLON, "expect ';' after value");
     writeToProgram(currentProgram(), ENC_PRINT(getLastAllocatedRegister(c)), p->previous.line);
-    freeR(c, p, getLastAllocatedRegister(c));
+    rfree(c, p, getLastAllocatedRegister(c));
 }
 
 static void sync(Parser *p, Scanner *sc, Compiler* c){
@@ -577,18 +615,25 @@ static void declaration(Parser *p, Scanner *sc, Compiler* c){
 static void statement(Parser *p, Scanner *sc, Compiler* c){
     if(match(p, sc, c, T_PRINT)){
         printStatement(p, sc, c);
+
     } else if(match(p, sc, c, T_IF)){
         ifStatement(p, sc, c);
+
     } else if(match(p, sc, c, T_WHILE)){
         whileStatement(p, sc, c); 
+
+    } else if(match(p, sc, c, T_FOR)){
+        forStatement(p, sc, c); 
+
     } else if(match(p, sc, c, T_LEFT_BRACE)){
         beginScope(c);
         block(p, sc, c);
         endScope(p, c);
+
     } else {
         expressionStatement(p, sc, c);
-    }
 
+    }
 }
 
 static void inline grouping(Parser *p, Scanner *sc, Compiler* c, bool canAssign){
@@ -604,8 +649,8 @@ static void binary(Parser *p, Scanner *sc, Compiler* c, bool canAssign){
     parsePrecedence(p, sc, c, (Precedence)rule->precedence+1);
     ido_uint32 rightR = getLastAllocatedRegister(c);
 
-    freeR(c, p, leftR);
-    freeR(c, p, rightR);
+    rfree(c, p, leftR);
+    rfree(c, p, rightR);
     ido_uint32 resultR = ralloc(c, p);
 
     switch (opType)
