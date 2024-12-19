@@ -8,6 +8,11 @@
 #include "memory.h"
 
 
+static void resetStack(TVM* tvm){
+    tvm->stackTop = tvm->stack;
+    tvm->frameCount = 0;
+}
+
 
 TVM* initVM(){
     TVM* tvm = ALLOCATESTRUCT(TVM);
@@ -29,11 +34,6 @@ TVM* initVM(){
     initTable(&tvm->globals);
 
     return tvm;
-}
-
-static void resetStack(TVM* tvm){
-    tvm->stackTop = tvm->stack;
-    tvm->frameCount = 0;
 }
 
 static void push(TVM* tvm, Value value) {

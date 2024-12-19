@@ -25,12 +25,12 @@ struct Obj {
     struct Obj* next;
 }; 
 
-typedef struct {
+struct ObjFunction{
     Obj obj;
     int arity;
     Program program;
     ObjString* name;
-} ObjFunction;
+};
 
 struct ObjString {
     Obj obj;

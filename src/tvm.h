@@ -1,6 +1,8 @@
 #ifndef IDO_TANIAVM
 #define IDO_TANIAVM
 
+typedef struct ObjFunction ObjFunction;
+
 #include <stdio.h>
 #include "instruction.h"
 #include "table.h"
