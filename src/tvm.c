@@ -37,15 +37,18 @@ void freeVM(TVM* tvm){
 }
 
 static void runtimeErr(TVM* tvm, const char* format, ...){
+
+    size_t inst = tvm->pc - tvm->program->code - 1;
+    int line = tvm->program->lines[inst];
+    fprintf(stderr, "[line %d] in script \n", line);
+
     va_list args;
     va_start(args, format);
     vfprintf(stderr, format, args);
     va_end(args);
     fputs("\n", stderr);
 
-    size_t inst = tvm->pc - tvm->program->code - 1;
-    int line = tvm->program->lines[inst];
-    fprintf(stderr, "[line %d] in script \n", line);
+
 }
 
 static bool isFalsey(Value v){
@@ -99,7 +102,7 @@ static InterpretResult runVM(TVM* tvm){
             Value rB;\
             GET_REGISTER_VALUE(rB, tvm->registers[DEC_REGISTER_RB(i)]);\
             if(!IS_NUMBER(rA) || !IS_NUMBER(rB)){\
-                runtimeErr(tvm, "matherr: operands must be numbers");\
+                runtimeErr(tvm, "   operands must be numbers");\
                 return INTERPRET_RUNTIME_ERROR;\
             }\
             tvm->registers[rD] = vType(rA.as.dnumber op rB.as.dnumber);\
@@ -141,7 +144,7 @@ static InterpretResult runVM(TVM* tvm){
             ObjString* name = READ_STRING(GET_CONSTANT(constantIndex));
             Value v;
             if(!tableGet(&tvm->globals, name, &v)){
-                runtimeErr(tvm, "undefined var '%s'", name->chars);
+                runtimeErr(tvm, "   undefined var '%s'", name->chars);
                 return INTERPRET_RUNTIME_ERROR;
             }
             tvm->registers[rD] = v;
@@ -157,7 +160,7 @@ static InterpretResult runVM(TVM* tvm){
 
             if(tableSet(&tvm->globals, name, v)){
                 tableDelete(&tvm->globals, name);
-                runtimeErr(tvm, "undefined var '%s'", name->chars);
+                runtimeErr(tvm, "   undefined var '%s'", name->chars);
                 return INTERPRET_RUNTIME_ERROR;
             }
             ibreak;
@@ -188,7 +191,7 @@ static InterpretResult runVM(TVM* tvm){
             } else if(IS_NUMBER(rA) && IS_NUMBER(rB)){
                 tvm->registers[rD] = DNUMBER_VAL(rA.as.dnumber + rB.as.dnumber);
             } else {
-                runtimeErr(tvm, "error: operands must be either numbers or strings");
+                runtimeErr(tvm, "   operands must be either numbers or strings");
                 return INTERPRET_RUNTIME_ERROR;
             }
 
@@ -294,7 +297,7 @@ static InterpretResult runVM(TVM* tvm){
             printf("HALTING...\n");
             return INTERPRET_HALT;
         default:
-            runtimeErr(tvm, "opcode: something has gone wrong. unrecognized code of operation");
+            runtimeErr(tvm, "   something has gone wrong. unrecognized code of operation");
             return INTERPRET_RUNTIME_ERROR;
         }
 

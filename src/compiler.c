@@ -274,7 +274,8 @@ static void parsePrecedence(Parser *p, Scanner *sc, Compiler* c, Precedence prec
 }
 
 static ido_uint32 identifierConstant(Parser *p, Compiler* c, Token* name){
-    return emitConstant(p, c, OBJ_VAL(copyString(c->tvm, name->start, name->length)));
+    ido_uint32 a = emitConstant(p, c, OBJ_VAL(copyString(c->tvm, name->start, name->length)));
+    return a;
 }
 
 static bool identifiersEqual(Token* a, Token* b){
@@ -321,7 +322,6 @@ static ido_uint32 parseVariable(Parser *p, Scanner *sc, Compiler* c, const char*
     if(c->scopeDepth > 0) return 0;
 
     ido_uint32 idc = identifierConstant(p, c, &p->previous);
-
     return idc;
 }
 
@@ -336,7 +336,13 @@ static void defineVariable(Parser *p, Compiler* c, ido_uint32 global){
         return;
     }
 
-    writeToProgram(currentProgram(), ENC_DEFINE_GLOBAL(getLastAllocatedRegister(c), global), p->previous.line);
+
+    if(c->tvm->allocatedRegisters[getLastAllocatedRegister(c)]){
+        freeR(c, p, getLastAllocatedRegister(c));
+    }
+
+    ido_uint32 r = getLastAllocatedRegister(c);
+    writeToProgram(currentProgram(), ENC_DEFINE_GLOBAL(r, global), p->previous.line);
 
 }
 
@@ -426,7 +432,6 @@ static void varDeclaration(Parser *p, Scanner *sc, Compiler* c){
     }  else {
         ido_uint32 resultR = allocR(c, p);
         writeToProgram(currentProgram(), ENC_NIL(resultR), p->previous.line); // else it does not have a initial value, allocate a nil instead
-        freeR(c, p, getLastAllocatedRegister(c));
     }
 
     consume(p, sc, c, T_SEMICOLON, "expect ';' after var declaration");

@@ -2,6 +2,7 @@ var f = true;
 var s = false;
 var c = nil;
 
+var c = 1;
 
 if(f){
     print "F var is true";
