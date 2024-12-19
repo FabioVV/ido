@@ -95,7 +95,11 @@ void freeR(Compiler* c, Parser* p, ido_uint32 r){
     printf("free R%d (free: %d)\n", r, c->tvm->free_register_count);
 }
 
-ido_uint32 allocR(Compiler* c, Parser* p){
+ido_uint32 ralloc(Compiler* c, Parser* p){
+    if(p->hadError){
+        return 0;
+    }
+
     for(ido_uint32 i = 0; i < REGISTERS_NUM; i++){
         if(!c->tvm->allocatedRegisters[i]){
             c->tvm->allocatedRegisters[i] = true;
@@ -107,6 +111,12 @@ ido_uint32 allocR(Compiler* c, Parser* p){
     }
     fprintf(stderr, "no free registers\n"); // need to handle spilling later
     exit(1);
+}
+
+static inline void rfree(Compiler* c, Parser* p,  ido_uint32 r){
+    if(c->tvm->allocatedRegisters[getLastAllocatedRegister(c)]){
+        freeR(c, p, r);
+    }
 }
 
 Compiler* initCompiler(TVM* tvm){
@@ -221,7 +231,7 @@ static ido_uint32 createConstant(Parser* p, Value v){
 static ido_uint32 emitConstant(Parser *p, Compiler* c, Value v){
     ido_uint32 constantIndex = createConstant(p, v);
 
-    ido_uint32 r = allocR(c, p);
+    ido_uint32 r = ralloc(c, p);
     
     writeToProgram(currentProgram(), ENC_CONSTANT(constantIndex, r), p->previous.line);
     return constantIndex;
@@ -235,6 +245,21 @@ static int writeJumpIfFalse(Parser *p, Compiler* c){
 static int writeJump(Parser *p, Compiler* c){
     writeToProgram(currentProgram(), ENC_JUMP(), p->previous.line);
     return currentProgram()->count - 1;
+}
+
+static void writeLoop(Parser *p, Compiler* c, int loopStart){
+    writeToProgram(currentProgram(), ENC_LOOP(), p->previous.line);
+    int offset = currentProgram()->count - loopStart ;
+
+    if(offset > 0x3FFFF){ // 0x3FFFF = 18 bits
+        error(p, "loop body too large");
+    }
+
+    // Opcode a = GET_OPCODE(currentProgram()->code[currentProgram()->count-1]);
+    // printf("%d\n", a);
+
+    int loopIndex = currentProgram()->count-1;
+    currentProgram()->code[loopIndex] = currentProgram()->code[loopIndex] | (offset & 0x3FFFF);
 }
 
 static void patchJump(Parser *p, int offset){
@@ -302,7 +327,7 @@ static void addLocal(Parser *p, Compiler* c, Token name){
         error(p, "too many local variables in function");
         return;
     }
-    ido_uint32 r = allocR(c, p);
+    ido_uint32 r = ralloc(c, p);
     Local* local = &c->locals[c->localCount++];
     local->name = name;
     local->depth =-1;
@@ -392,7 +417,7 @@ static void namedVariable(Parser *p, Scanner *sc, Compiler* c, Token name, bool 
             writeToProgram(currentProgram(), ENC_SET_LOCAL(getLastAllocatedRegister(c), arg), p->previous.line);
         } else {
 
-            ido_uint32 resultR = allocR(c, p);
+            ido_uint32 resultR = ralloc(c, p);
             writeToProgram(currentProgram(), ENC_GET_LOCAL(arg, resultR), p->previous.line);
         }
     } else {
@@ -404,7 +429,7 @@ static void namedVariable(Parser *p, Scanner *sc, Compiler* c, Token name, bool 
 
         } else {
             freeR(c, p, getLastAllocatedRegister(c));
-            ido_uint32 resultR = allocR(c, p);
+            ido_uint32 resultR = ralloc(c, p);
             writeToProgram(currentProgram(), ENC_GET_GLOBAL(arg, resultR), p->previous.line);
         }
     }
@@ -455,7 +480,7 @@ static void varDeclaration(Parser *p, Scanner *sc, Compiler* c){
         expression(p, sc, c); // its going to set a register to the initial val of the var eg: var a = "test";  the string "test" being the initial val here
 
     }  else {
-        ido_uint32 resultR = allocR(c, p);
+        ido_uint32 resultR = ralloc(c, p);
         writeToProgram(currentProgram(), ENC_NIL(resultR), p->previous.line); // else it does not have a initial value, allocate a nil instead
     }
 
@@ -493,6 +518,23 @@ static void ifStatement(Parser *p, Scanner *sc, Compiler* c){
     patchJump(p, elseJump);
 
 }
+
+static void whileStatement(Parser *p, Scanner *sc, Compiler* c){
+    int loopStart = currentProgram()->count;
+    consume(p, sc, c, T_LEFT_PAREN, "expect '(' after 'while'");
+    expression(p, sc, c);
+    consume(p, sc, c, T_RIGHT_PAREN, "expect ')' after condition");
+    
+    int exitJump = writeJumpIfFalse(p, c);
+    if(c->tvm->allocatedRegisters[getLastAllocatedRegister(c)]){
+        freeR(c, p, getLastAllocatedRegister(c));
+    }
+    statement(p, sc, c);
+    writeLoop(p, c, loopStart);
+
+    patchJump(p, exitJump);
+
+}   
 
 static void printStatement(Parser *p, Scanner *sc, Compiler* c){
     expression(p, sc, c);
@@ -537,6 +579,8 @@ static void statement(Parser *p, Scanner *sc, Compiler* c){
         printStatement(p, sc, c);
     } else if(match(p, sc, c, T_IF)){
         ifStatement(p, sc, c);
+    } else if(match(p, sc, c, T_WHILE)){
+        whileStatement(p, sc, c); 
     } else if(match(p, sc, c, T_LEFT_BRACE)){
         beginScope(c);
         block(p, sc, c);
@@ -562,7 +606,7 @@ static void binary(Parser *p, Scanner *sc, Compiler* c, bool canAssign){
 
     freeR(c, p, leftR);
     freeR(c, p, rightR);
-    ido_uint32 resultR = allocR(c, p);
+    ido_uint32 resultR = ralloc(c, p);
 
     switch (opType)
     {
@@ -602,7 +646,7 @@ static void binary(Parser *p, Scanner *sc, Compiler* c, bool canAssign){
 }
 
 static void literal(Parser *p, Scanner *sc, Compiler* c, bool canAssign){
-    ido_uint32 resultR = allocR(c, p);
+    ido_uint32 resultR = ralloc(c, p);
 
     switch (p->previous.type) {
         case T_TRUE:  writeToProgram(currentProgram(), ENC_TRUE(resultR), p->previous.line); break;

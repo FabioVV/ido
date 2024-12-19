@@ -289,6 +289,11 @@ static InterpretResult runVM(TVM* tvm){
             tvm->pc += offset;
             ibreak;
         }
+        case OP_LOOP:{
+            ido_uint32 offset = GET_JUMP_OFFSET(i);
+            tvm->pc -= offset;
+            ibreak;
+        }
         case OP_RETURN:{
             return INTERPRET_OK;
             ibreak;
