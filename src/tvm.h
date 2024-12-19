@@ -34,10 +34,6 @@ typedef struct{
 
 TVM* initVM();
 void freeVM(TVM* tvm);
-ido_uint32 allocR(TVM* tvm);
-void freeR(TVM* tvm, ido_uint32 r);
-ido_uint32 getLastAllocatedRegister(TVM* tvm);
-void setLastAllocatedRegister(TVM* tvm, ido_uint32 r);
 InterpretResult interpret(TVM* tvm, Scanner* sc, Parser* p);
 
 

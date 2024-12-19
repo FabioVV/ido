@@ -34,6 +34,7 @@ $(OBJ_DIR):
 clean:
 	@echo "=> cleaning files"
 	@rm -rf $(OBJ_DIR) $(TARGET)
+	@echo "=> done"
 
 # Run the program
 run: $(TARGET)

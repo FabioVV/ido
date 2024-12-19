@@ -61,8 +61,11 @@ typedef struct {
 Compiler* initCompiler(TVM* tvm);
 void freeCompiler(Compiler* c);
 bool compile(Program* program, Scanner* sc, Parser* p, TVM* tvm);
-ido_uint32 LinearScanRegisterAllocation(Compiler* c, ido_uint32 start, ido_uint32 end);
 
+ido_uint32 allocR(Compiler* c, Parser* p);
+void freeR(Compiler* c, Parser* p, ido_uint32 r);
+ido_uint32 getLastAllocatedRegister(Compiler* c);
+void setLastAllocatedRegister(Compiler* c, ido_uint32 r);
 
 void initIntervalArray(LiveInterval* array);
 void writeIntervalArray(LiveInterval* array, ido_uint32 r, ido_uint32 start, ido_uint32 end);

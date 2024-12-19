@@ -3,6 +3,7 @@
 print "Hello, World!";
 print "Christ is King!";
 
+var niltest;
 var boolean = true;
 print boolean;
 

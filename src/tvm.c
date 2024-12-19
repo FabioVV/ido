@@ -36,31 +36,6 @@ void freeVM(TVM* tvm){
     FREE(TVM, tvm);
 }
 
-void freeR(TVM* tvm, ido_uint32 r){
-    // if(IS_REGISTER_FREE(r) && !tvm->allocatedRegisters[r]){
-    //     fprintf(stderr, "attempted to free unallocated or invalid register R%d\n", r);
-    //     exit(1);
-    // }
-
-    tvm->allocatedRegisters[r] = false;
-    tvm->free_register_count++;
-    printf("free R%d (free: R%d)\n", r, tvm->free_register_count);
-}
-
-ido_uint32 allocR(TVM* tvm){
-    for(ido_uint32 i = 0; i < REGISTERS_NUM; i++){
-        if(!tvm->allocatedRegisters[i]){
-            tvm->allocatedRegisters[i] = true;
-            tvm->free_register_count--;
-            tvm->last_allocated_register = i;
-            printf("alloc R%d (free: %d)\n", i, tvm->free_register_count);
-            return i;
-        }
-    }
-    fprintf(stderr, "no free registers\n");
-    exit(1);
-}
-
 static void runtimeErr(TVM* tvm, const char* format, ...){
     va_list args;
     va_start(args, format);
@@ -71,14 +46,6 @@ static void runtimeErr(TVM* tvm, const char* format, ...){
     size_t inst = tvm->pc - tvm->program->code - 1;
     int line = tvm->program->lines[inst];
     fprintf(stderr, "[line %d] in script \n", line);
-}
-
-ido_uint32 getLastAllocatedRegister(TVM* tvm){
-    return tvm->last_allocated_register;
-}
-
-void setLastAllocatedRegister(TVM* tvm, ido_uint32 r){
-    tvm->last_allocated_register = r;
 }
 
 static bool isFalsey(Value v){
