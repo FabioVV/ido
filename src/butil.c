@@ -8,7 +8,7 @@ typedef struct{
 void printBytecodeSimple(Program* prog){
     ido_uint32* pc = prog->code;
 
-    bytecodeInfo opnames[] = {
+    bytecodeInfo opnames[] = { // expand these later
         [OP_LOAD]    = {"OP_PRINT"},
         [OP_CONSTANT]    = {"OP_CONSTANT"},
         [OP_PRINT]    = {"OP_PRINT"},

@@ -12,6 +12,7 @@ typedef enum {
     VAL_INUMBER,
     VAL_DNUMBER,
     VAL_OBJ,
+    VAL_FUNCTION,
 } ValueType;
 
 typedef struct {

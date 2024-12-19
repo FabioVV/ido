@@ -9,7 +9,7 @@
 
 void sys_info_print_repl(){
   printf("\n");
-  printf("IDO ?.?.? on ");
+  printf("IDO 0.0.0 on ");
 #if defined( _WIN32) || defined(_WIN64)
   SYSTEM_INFO sysInfo;
   OSVERSIONINFO osvi;

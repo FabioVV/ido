@@ -11,6 +11,9 @@
 
 #define HASH(key, length) hash(key, (uint32_t )length, 0)
 
+
+//murmurhash v3
+// as found here: https://github.com/jwerle/murmurhash.c
 static uint32_t hash(const char* key, uint32_t length, uint32_t seed){
     uint32_t c1 = 0xcc9e2d51;
     uint32_t c2 = 0x1b873593;
@@ -84,6 +87,14 @@ static Obj* allocateObj(TVM* tvm, size_t size, ObjType type){
     return object;
 }
 
+ObjFunction* newFunction(TVM* tvm){
+    ObjFunction* f = ALLOCATE_OBJ(tvm, ObjFunction, OBJ_FUNCTION);
+    f->arity = 0;
+    f->name = NULL;
+    initProgram(&f->program);
+    return f;
+}
+
 static ObjString* allocateString(TVM* tvm, char* chars, int length, uint32_t hash){
     ObjString* string = ALLOCATE_OBJ(tvm, ObjString, OBJ_STRING);
     string->chars = chars;
@@ -118,11 +129,18 @@ ObjString* copyString(TVM* tvm, const char* chars, int length){
     return allocateString(tvm, heapChars, length, h);
 }
 
+static void printFunction(ObjFunction* f){
+    printf("<function %s>", f->name->chars);
+}
+
 void printObject(Value v){
     switch (OBJ_TYPE(v))
     {
     case OBJ_STRING:
         printf("%s", AS_CSTRING(v));
+        break;
+    case OBJ_FUNCTION:
+        printFunction(AS_FUNCTION(v));
         break;
     default: return;
     }
