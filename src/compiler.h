@@ -24,6 +24,11 @@ typedef enum {
     PREC_PRIMARY
 } Precedence;
 
+typedef enum {
+    TYPE_FUNCTION,
+    TYPE_SCRIPT,
+} FunctionType;
+
 typedef struct {
     Token name;
     int depth;
@@ -43,11 +48,14 @@ typedef struct {
 } LiveInterval;
 
 typedef struct {
+    TVM* tvm;
+    ObjFunction* function;
+    FunctionType type;
+
     Local locals[LOCALS_NUM];// What a strange limit...
-    LiveInterval liveIntervals; 
+    // LiveInterval liveIntervals; 
     int localCount;
     int scopeDepth;
-    TVM* tvm;
 } Compiler;
 
 typedef void (*ParseFn)(Parser *p, Scanner *sc, Compiler* c, bool canAssign);
@@ -58,17 +66,17 @@ typedef struct {
     Precedence precedence;
 } ParseRule;
 
-Compiler* initCompiler(TVM* tvm);
+Compiler* initCompiler(TVM* tvm, FunctionType type);
 void freeCompiler(Compiler* c);
-bool compile(Program* program, Scanner* sc, Parser* p, TVM* tvm);
+ObjFunction* compile(Scanner* sc, Parser* p, TVM* tvm);
 
 ido_uint32 ralloc(Compiler* c, Parser* p);
 void freeR(Compiler* c, Parser* p, ido_uint32 r);
 ido_uint32 getLastAllocatedRegister(Compiler* c);
 void setLastAllocatedRegister(Compiler* c, ido_uint32 r);
 
-void initIntervalArray(LiveInterval* array);
-void writeIntervalArray(LiveInterval* array, ido_uint32 r, ido_uint32 start, ido_uint32 end);
-void freeIntervalArray(LiveInterval* array);
+// void initIntervalArray(LiveInterval* array);
+// void writeIntervalArray(LiveInterval* array, ido_uint32 r, ido_uint32 start, ido_uint32 end);
+// void freeIntervalArray(LiveInterval* array);
 
 #endif

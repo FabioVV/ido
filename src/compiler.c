@@ -20,46 +20,46 @@ static void declaration(Parser *p, Scanner *sc, Compiler* c);
 
 Program* compilingProgram;
 
-void initIntervalArray(LiveInterval* array){
-    array->capacity = 0;
-    array->count = 0;
-    array->intervals = NULL;
-}
+// void initIntervalArray(LiveInterval* array){
+//     array->capacity = 0;
+//     array->count = 0;
+//     array->intervals = NULL;
+// }
 
-void writeIntervalArray(LiveInterval* array, ido_uint32 r, ido_uint32 start, ido_uint32 end){
-    if(array->capacity < array->count + 1){
-        int oldCap = array->capacity;
-        array->capacity = GROW_CAPACITY(oldCap);
-        array->intervals = GROW_ARRAY(Intervals, array->intervals, oldCap, array->capacity);
-    }
+// void writeIntervalArray(LiveInterval* array, ido_uint32 r, ido_uint32 start, ido_uint32 end){
+//     if(array->capacity < array->count + 1){
+//         int oldCap = array->capacity;
+//         array->capacity = GROW_CAPACITY(oldCap);
+//         array->intervals = GROW_ARRAY(Intervals, array->intervals, oldCap, array->capacity);
+//     }
 
-    Intervals l;
-    l.end = end;
-    l.start = start;
-    l.registerIndex = r;
+//     Intervals l;
+//     l.end = end;
+//     l.start = start;
+//     l.registerIndex = r;
 
-    array->intervals[array->count] = l;
-    array->count++;
+//     array->intervals[array->count] = l;
+//     array->count++;
 
-}
-void freeIntervalArray(LiveInterval* array){
-    FREE_ARRAY(LiveInterval, array->intervals, array->capacity);
-    initIntervalArray(array);
-}
+// }
+// void freeIntervalArray(LiveInterval* array){
+//     FREE_ARRAY(LiveInterval, array->intervals, array->capacity);
+//     initIntervalArray(array);
+// }
 
-static inline void addLiveInterval(Compiler* c, ido_uint32 r, ido_uint32 start, ido_uint32 end){
-    writeIntervalArray(&c->liveIntervals, r, start, end);
-}
+// static inline void addLiveInterval(Compiler* c, ido_uint32 r, ido_uint32 start, ido_uint32 end){
+//     writeIntervalArray(&c->liveIntervals, r, start, end);
+// }
 
-static int compareStart(const void *a, const void *b){
-    Intervals *A = (Intervals *)a;
-    Intervals *B = (Intervals *)b;
-    return (A->start - B->start);
-}
+// static int compareStart(const void *a, const void *b){
+//     Intervals *A = (Intervals *)a;
+//     Intervals *B = (Intervals *)b;
+//     return (A->start - B->start);
+// }
 
-static inline void sortIntervalsByStart(LiveInterval* array){
-    qsort(array->intervals, array->count, sizeof(&array->intervals), compareStart);
-}
+// static inline void sortIntervalsByStart(LiveInterval* array){
+//     qsort(array->intervals, array->count, sizeof(&array->intervals), compareStart);
+// }
 
 
 
@@ -77,7 +77,6 @@ ido_uint32 getLastAllocatedRegister(Compiler* c){
 void setLastAllocatedRegister(Compiler* c, ido_uint32 r){
     c->tvm->last_allocated_register = r;
 }
-
 
 void freeR(Compiler* c, Parser* p, ido_uint32 r){
     if(p->hadError){
@@ -119,22 +118,31 @@ static inline void rfree(Compiler* c, Parser* p,  ido_uint32 r){
     }
 }
 
-Compiler* initCompiler(TVM* tvm){
+Compiler* initCompiler(TVM* tvm, FunctionType type){
     Compiler* c = ALLOCATESTRUCT(Compiler);
     if(c == NULL){
         fprintf(stderr, "error allocating compiler: not enough memory");
         exit(1);
     }
+
+    c->tvm = tvm;
+    c->type = type;
+    c->function = NULL;
     c->localCount = 0;
     c->scopeDepth = 0;
-    c->tvm = tvm;
-    initIntervalArray(&c->liveIntervals);
+    // initIntervalArray(&c->liveIntervals);
 
+    c->function = newFunction(tvm);
+
+    Local* l = &c->locals[c->localCount++];
+    l->depth = 0;
+    l->name.start = "";
+    l->name.length = 0;
     return c;
 }
 
 void freeCompiler(Compiler* c){
-    freeIntervalArray(&c->liveIntervals);
+    // freeIntervalArray(&c->liveIntervals);
     FREE(Compiler, c);
 }
 
@@ -173,8 +181,10 @@ static void inline emitReturn(Parser* p){
     writeToProgram(currentProgram(), ENC_RETURN, p->previous.line);
 }
 
-static void endCompilation(Parser* p){
+static ObjFunction* endCompilation(Compiler* c, Parser* p){
     emitReturn(p);
+    ObjFunction* f = c->function;
+    return f;
 }
 
 static void beginScope(Compiler* c){
@@ -747,10 +757,10 @@ static ParseRule* getRule(TokenType t){
     return &rules[t];
 }
 
-bool compile(Program* program, Scanner* sc, Parser* p, TVM* tvm){
-    Compiler* c = initCompiler(tvm);
+ObjFunction* compile( Scanner* sc, Parser* p, TVM* tvm){
+    Compiler* c = initCompiler(tvm, TYPE_SCRIPT);
 
-    compilingProgram = program;
+    compilingProgram = &c->function->program;
 
     p->panicMode = false;
     p->hadError = false;
@@ -759,11 +769,11 @@ bool compile(Program* program, Scanner* sc, Parser* p, TVM* tvm){
     while(!match(p, sc, c, T_EOF)){
         declaration(p, sc, c);
     }
-    endCompilation(p);
+    ObjFunction* f =  endCompilation(c, p);
 
     printBytecodeSimple(compilingProgram);
 
     freeCompiler(c);
 
-    return !p->hadError;
+    return p->hadError ? NULL : f;
 }

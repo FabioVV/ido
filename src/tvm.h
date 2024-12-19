@@ -11,6 +11,9 @@
 #define IS_REGISTER_VALID(r) ((r) != INVALID_REGISTER)
 #define IS_REGISTER_FREE(r)  ((r) >= 0 && (r) <= REGISTERS_NUM)
 
+#define FRAMES_NUM 1024 
+#define STACK_NUM 2048 
+
 typedef enum {
   INTERPRET_OK,
   INTERPRET_HALT,
@@ -19,14 +22,26 @@ typedef enum {
   INTERPRET_REGISTER_ERROR,
 } InterpretResult;
 
+typedef struct {
+  ObjFunction* function;
+  Instruction* pc;
+  Value* slots; // Points into the tvms value stack at the first slot that this function can use
+} CallFrame;
+
 typedef struct{
   Value registers[REGISTERS_NUM];
   bool allocatedRegisters[REGISTERS_NUM];
   ido_uint32 free_register_count;
   ido_uint32 last_allocated_register;
 
-  Program* program; 
-  ido_uint32* pc;
+  CallFrame frames[FRAMES_NUM];
+  int frameCount;
+
+  Value stack[STACK_NUM];
+  Value* stackTop;
+
+  // Program* program; 
+  // ido_uint32* pc;
   Table strings;
   Table globals;
   Obj* objects;

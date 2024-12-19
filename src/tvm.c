@@ -1,12 +1,12 @@
 // The tania VM
 #include "tvm.h"
 #include <stdarg.h>
-#include <stdio.h>
 #include <string.h>
 #include "common.h"
 #include "compiler.h"
 #include "object.h"
 #include "memory.h"
+
 
 
 TVM* initVM(){
@@ -15,6 +15,7 @@ TVM* initVM(){
         fprintf(stderr, "error allocating tvm: not enough memory");
         exit(1);
     }
+    resetStack(tvm);
     for (int i = 0; i < REGISTERS_NUM; i++) {
         tvm->registers[i] = NIL_VAL();
         tvm->allocatedRegisters[i] = false;  // All registers are initially free (may change)
@@ -22,12 +23,22 @@ TVM* initVM(){
 
     tvm->last_allocated_register = INVALID_REGISTER; // Initialize with an invalid register
     tvm->free_register_count = REGISTERS_NUM;
-    tvm->pc = 0;
+    // tvm->pc = 0;
     tvm->objects = NULL;
     initTable(&tvm->strings);
     initTable(&tvm->globals);
 
     return tvm;
+}
+
+static void resetStack(TVM* tvm){
+    tvm->stackTop = tvm->stack;
+    tvm->frameCount = 0;
+}
+
+static void push(TVM* tvm, Value value) {
+    *tvm->stackTop = value;
+    tvm->stackTop++;
 }
 
 void freeVM(TVM* tvm){
@@ -38,8 +49,9 @@ void freeVM(TVM* tvm){
 
 static void runtimeErr(TVM* tvm, const char* format, ...){
 
-    size_t inst = tvm->pc - tvm->program->code - 1;
-    int line = tvm->program->lines[inst];
+    CallFrame* frame = &tvm->frames[tvm->frameCount - 1];
+    size_t inst = frame->pc - frame->function->program.code - 1;
+    int line = frame->function->program.lines[inst];
     fprintf(stderr, "[line %d] in script \n", line);
 
     va_list args;
@@ -71,9 +83,9 @@ static inline void concatenate(TVM* tvm, Value rA, Value rB, ido_uint32 dstR){
 
 
 static InterpretResult runVM(TVM* tvm){
+    register CallFrame* frame = &tvm->frames[tvm->frameCount - 1];
     #define ibreak break
-
-    #define GET_CONSTANT(index) (tvm->program->constants.values[index])
+    #define GET_CONSTANT(index) (frame->function->program.constants.values[index])
     #define READ_STRING(value) AS_STRING(value)
     
     #define GET_REGISTER_VALUE(target, source)\
@@ -109,7 +121,7 @@ static InterpretResult runVM(TVM* tvm){
         } while(false)\
 
     for(;;){
-        register Instruction i = NEXT_INSTRUCTION(tvm);
+        register Instruction i = NEXT_INSTRUCTION(frame);
         Opcode OP = GET_OPCODE(i);
         switch (OP)
         {
@@ -203,7 +215,7 @@ static InterpretResult runVM(TVM* tvm){
         case OP_NEG:{
             ido_uint32 r = DEC_REGISTER_DEST(i);
             Value v = GET_CONSTANT(AS_INUMBER(tvm->registers[r]));
-            tvm->program->constants.values[AS_INUMBER(tvm->registers[r])] = DNUMBER_VAL(-v.as.dnumber);
+            frame->function->program.constants.values[AS_INUMBER(tvm->registers[r])] = DNUMBER_VAL(-v.as.dnumber);
             ibreak;
         }
         case OP_TRUE:{
@@ -281,17 +293,17 @@ static InterpretResult runVM(TVM* tvm){
             ido_uint32 offset = GET_JUMP_OFFSET(i);
             ido_uint32 readConditionFrom = DEC_REGISTER_DEST(i);
 
-            if(isFalsey(tvm->registers[readConditionFrom])) tvm->pc += offset;
+            if(isFalsey(tvm->registers[readConditionFrom])) frame->pc += offset;
             ibreak;
         }
         case OP_JUMP:{
             ido_uint32 offset = GET_JUMP_OFFSET(i);
-            tvm->pc += offset;
+            frame->pc += offset;
             ibreak;
         }
         case OP_LOOP:{
             ido_uint32 offset = GET_JUMP_OFFSET(i);
-            tvm->pc -= offset;
+            frame->pc -= offset;
             ibreak;
         }
         case OP_RETURN:{
@@ -316,19 +328,15 @@ static InterpretResult runVM(TVM* tvm){
 }
 
 InterpretResult interpret(TVM* tvm, Scanner* sc, Parser* p){
-    Program program;
-    initProgram(&program);
+    ObjFunction* function = compile(sc, p, tvm);
+    if(function == NULL) return INTERPRET_COMPILE_ERROR;
 
-    if(!compile(&program, sc, p, tvm)){
-        freeProgram(&program);
-        return INTERPRET_COMPILE_ERROR;
-    }
+    push(tvm, OBJ_VAL(function));
 
-    tvm->program = &program;
-    tvm->pc = tvm->program->code;
+    CallFrame* frame = &tvm->frames[tvm->frameCount++];
+    frame->function = function;
+    frame->pc = function->program.code;
+    frame->slots = tvm->stack;
 
-    InterpretResult resultVM = runVM(tvm);
-
-    freeProgram(&program);
-    return resultVM;
+    return runVM(tvm);
 }

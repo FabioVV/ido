@@ -130,6 +130,10 @@ ObjString* copyString(TVM* tvm, const char* chars, int length){
 }
 
 static void printFunction(ObjFunction* f){
+    if(f->name == NULL){
+        printf("<script>");
+        return;
+    }
     printf("<function %s>", f->name->chars);
 }
 

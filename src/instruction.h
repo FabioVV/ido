@@ -54,7 +54,7 @@ typedef enum {
 
 // Instructions handling
 #define GET_OPCODE(i)               ((i >> 26) & 0x3F)
-#define NEXT_INSTRUCTION(tvm)       (*tvm->pc++)
+#define NEXT_INSTRUCTION(frame)       (*frame->pc++)
 
 #define ENC_CONSTANT(cIndex, r)     (OP_CONSTANT << 26) | (r << 18) | (cIndex & 0x1FFFF)
 #define DEC_CONSTANT_INDEX(i)       (i & 0x1FFFF)
