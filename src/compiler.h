@@ -66,7 +66,7 @@ typedef struct {
     Precedence precedence;
 } ParseRule;
 
-Compiler* initCompiler(TVM* tvm, FunctionType type);
+Compiler* initCompiler(TVM* tvm, Parser *p, FunctionType type);
 void freeCompiler(Compiler* c);
 ObjFunction* compile(Scanner* sc, Parser* p, TVM* tvm);
 

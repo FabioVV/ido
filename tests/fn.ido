@@ -1,0 +1,6 @@
+fn itsafn(){
+    print "a print..... inside of a function.....";
+}
+
+
+print itsafn;

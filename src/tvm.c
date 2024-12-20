@@ -41,6 +41,11 @@ static void push(TVM* tvm, Value value) {
     tvm->stackTop++;
 }
 
+static Value pop(TVM* tvm) {
+    tvm->stackTop--;
+    return *tvm->stackTop;
+}
+
 void freeVM(TVM* tvm){
     freeTable(&tvm->strings);
     freeTable(&tvm->globals);

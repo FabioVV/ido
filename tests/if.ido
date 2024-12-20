@@ -27,7 +27,3 @@ if(true and true){
 if(true and false){
     print "This should not be printed to the console";
 }
-
-
-
-

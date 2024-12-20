@@ -18,8 +18,6 @@ static void expression(Parser *p, Scanner *sc, Compiler* c);
 static void statement(Parser *p, Scanner *sc, Compiler* c);
 static void declaration(Parser *p, Scanner *sc, Compiler* c);
 
-Program* compilingProgram;
-
 // void initIntervalArray(LiveInterval* array){
 //     array->capacity = 0;
 //     array->count = 0;
@@ -94,6 +92,12 @@ void freeR(Compiler* c, Parser* p, ido_uint32 r){
     printf("free R%d (free: %d)\n", r, c->tvm->free_register_count);
 }
 
+static inline void rfree(Compiler* c, Parser* p,  ido_uint32 r){
+    if(c->tvm->allocatedRegisters[r]){
+        freeR(c, p, r);
+    }
+}
+
 ido_uint32 ralloc(Compiler* c, Parser* p){
     if(p->hadError){
         return 0;
@@ -112,13 +116,7 @@ ido_uint32 ralloc(Compiler* c, Parser* p){
     exit(1);
 }
 
-static inline void rfree(Compiler* c, Parser* p,  ido_uint32 r){
-    if(c->tvm->allocatedRegisters[r]){
-        freeR(c, p, r);
-    }
-}
-
-Compiler* initCompiler(TVM* tvm, FunctionType type){
+Compiler* initCompiler(TVM* tvm, Parser* p, FunctionType type){
     Compiler* c = ALLOCATESTRUCT(Compiler);
     if(c == NULL){
         fprintf(stderr, "error allocating compiler: not enough memory");
@@ -134,6 +132,10 @@ Compiler* initCompiler(TVM* tvm, FunctionType type){
 
     c->function = newFunction(tvm);
 
+    if(type != TYPE_SCRIPT){
+        c->function->name = copyString(tvm, p->previous.start, p->previous.length);
+    }
+
     Local* l = &c->locals[c->localCount++];
     l->depth = 0;
     l->name.start = "";
@@ -146,9 +148,6 @@ void freeCompiler(Compiler* c){
     FREE(Compiler, c);
 }
 
-static Program* currentProgram(){
-    return compilingProgram;
-}
 
 static void errorAt(Parser* p, Token* token, const char* message){
     if(p->panicMode) return;
@@ -177,12 +176,12 @@ static void errorAtCurrent(Parser* p, const char* message){
     errorAt(p, &p->current, message);
 }
 
-static void inline emitReturn(Parser* p){
-    writeToProgram(currentProgram(), ENC_RETURN, p->previous.line);
+static void inline emitReturn(Compiler* c, Parser* p){
+    writeToProgram(&c->function->program, ENC_RETURN, p->previous.line);
 }
 
 static ObjFunction* endCompilation(Compiler* c, Parser* p){
-    emitReturn(p);
+    emitReturn(c, p);
     ObjFunction* f = c->function;
     return f;
 }
@@ -228,8 +227,8 @@ static bool match(Parser* p, Scanner* sc, Compiler* c, TokenType t){
     return true;
 }
 
-static ido_uint32 createConstant(Parser* p, Value v){
-    ido_uint32 constantIndex = addConstant(currentProgram(), v);
+static ido_uint32 createConstant(Parser* p, Compiler* c, Value v){
+    ido_uint32 constantIndex = addConstant(&c->function->program, v);
     if(constantIndex > UINT32_MAX){
         error(p, "too many constants in one program");
         return 0;
@@ -239,27 +238,27 @@ static ido_uint32 createConstant(Parser* p, Value v){
 }
 
 static ido_uint32 emitConstant(Parser *p, Compiler* c, Value v){
-    ido_uint32 constantIndex = createConstant(p, v);
+    ido_uint32 constantIndex = createConstant(p, c, v);
 
     ido_uint32 r = ralloc(c, p);
     
-    writeToProgram(currentProgram(), ENC_CONSTANT(constantIndex, r), p->previous.line);
+    writeToProgram(&c->function->program, ENC_CONSTANT(constantIndex, r), p->previous.line);
     return constantIndex;
 }
 
 static int writeJumpIfFalse(Parser *p, Compiler* c){
-    writeToProgram(currentProgram(), ENC_JUMP_IF_FALSE(getLastAllocatedRegister(c)), p->previous.line);
-    return currentProgram()->count - 1;
+    writeToProgram(&c->function->program, ENC_JUMP_IF_FALSE(getLastAllocatedRegister(c)), p->previous.line);
+    return c->function->program.count - 1;
 }
 
 static int writeJump(Parser *p, Compiler* c){
-    writeToProgram(currentProgram(), ENC_JUMP(), p->previous.line);
-    return currentProgram()->count - 1;
+    writeToProgram(&c->function->program, ENC_JUMP(), p->previous.line);
+    return c->function->program.count - 1;
 }
 
 static void writeLoop(Parser *p, Compiler* c, int loopStart){
-    writeToProgram(currentProgram(), ENC_LOOP(), p->previous.line);
-    int offset = currentProgram()->count - loopStart ;
+    writeToProgram(&c->function->program, ENC_LOOP(), p->previous.line);
+    int offset = c->function->program.count - loopStart ;
 
     if(offset > 0x3FFFF){ // 0x3FFFF = 18 bits
         error(p, "loop body too large");
@@ -268,20 +267,20 @@ static void writeLoop(Parser *p, Compiler* c, int loopStart){
     // Opcode a = GET_OPCODE(currentProgram()->code[currentProgram()->count-1]);
     // printf("%d\n", a);
 
-    int loopIndex = currentProgram()->count-1;
-    currentProgram()->code[loopIndex] = currentProgram()->code[loopIndex] | (offset & 0x3FFFF);
+    int loopIndex = c->function->program.count-1;
+    c->function->program.code[loopIndex] = c->function->program.code[loopIndex] | (offset & 0x3FFFF);
 }
 
-static void patchJump(Parser *p, int offset){
+static void patchJump(Parser *p, Compiler* c, int offset){
 
-    int jump = currentProgram()->count - offset - 1;
+    int jump = c->function->program.count - offset - 1;
 
    // ensure the jump doesn't exceed the allowed 18-bit range
     if(jump > 0x3FFFF){ // 0x3FFFF = 18 bits
         error(p, "too much code to jump over");
     }
 
-    currentProgram()->code[offset] = currentProgram()->code[offset] | (jump & 0x3FFFF);
+    c->function->program.code[offset] = c->function->program.code[offset] | (jump & 0x3FFFF);
 
 }
 
@@ -357,13 +356,15 @@ static ido_uint32 parseVariable(Parser *p, Scanner *sc, Compiler* c, const char*
     declareVariable(p, c);
     if(c->scopeDepth > 0) return 0;
 
+
     ido_uint32 idc = identifierConstant(p, c, &p->previous);
     return idc;
 }
 
 static void markInitialized(Parser *p, Compiler* c){
+    if(c->scopeDepth == 0) return;
     c->locals[c->localCount - 1].depth = c->scopeDepth;
-    writeToProgram(currentProgram(), ENC_SET_LOCAL(getLastAllocatedRegister(c), c->locals[c->localCount - 1].registerIndex), p->previous.line);
+    writeToProgram(&c->function->program, ENC_SET_LOCAL(getLastAllocatedRegister(c), c->locals[c->localCount - 1].registerIndex), p->previous.line);
 }
 
 static void defineVariable(Parser *p, Compiler* c, ido_uint32 global){
@@ -374,7 +375,7 @@ static void defineVariable(Parser *p, Compiler* c, ido_uint32 global){
     rfree(c, p, getLastAllocatedRegister(c));
 
     ido_uint32 r = getLastAllocatedRegister(c);
-    writeToProgram(currentProgram(), ENC_DEFINE_GLOBAL(r, global), p->previous.line);
+    writeToProgram(&c->function->program, ENC_DEFINE_GLOBAL(r, global), p->previous.line);
 
 }
 
@@ -384,7 +385,7 @@ static void and_(Parser *p, Scanner *sc, Compiler* c, bool canAssign){
 
 
     parsePrecedence(p, sc, c, PREC_AND);
-    patchJump(p, endJump);
+    patchJump(p, c, endJump);
 }
 
 static void or_(Parser *p, Scanner *sc, Compiler* c, bool canAssign){
@@ -394,10 +395,10 @@ static void or_(Parser *p, Scanner *sc, Compiler* c, bool canAssign){
 
     int endJump = writeJump(p, c);
 
-    patchJump(p, elseJump);
+    patchJump(p, c, elseJump);
 
     parsePrecedence(p, sc, c, PREC_OR);
-    patchJump(p, endJump);
+    patchJump(p, c, endJump);
 }
 
 static void number(Parser *p, Scanner *sc, Compiler* c, bool canAssign){
@@ -418,23 +419,23 @@ static void namedVariable(Parser *p, Scanner *sc, Compiler* c, Token name, bool 
         if(canAssign && match(p, sc, c, T_EQUAL)){
             rfree(c, p, getLastAllocatedRegister(c));
             expression(p, sc, c);
-            writeToProgram(currentProgram(), ENC_SET_LOCAL(getLastAllocatedRegister(c), arg), p->previous.line);
+            writeToProgram(&c->function->program, ENC_SET_LOCAL(getLastAllocatedRegister(c), arg), p->previous.line);
         } else {
 
             ido_uint32 resultR = ralloc(c, p);
-            writeToProgram(currentProgram(), ENC_GET_LOCAL(arg, resultR), p->previous.line);
+            writeToProgram(&c->function->program, ENC_GET_LOCAL(arg, resultR), p->previous.line);
         }
     } else {
         ido_uint32 arg = identifierConstant(p, c, &name); // TODO: Check bits of encoding and return indexes fo better handling
         if(canAssign && match(p, sc, c, T_EQUAL)){
             rfree(c, p, getLastAllocatedRegister(c));
             expression(p, sc, c);
-            writeToProgram(currentProgram(), ENC_SET_GLOBAL(getLastAllocatedRegister(c), arg), p->previous.line);
+            writeToProgram(&c->function->program, ENC_SET_GLOBAL(getLastAllocatedRegister(c), arg), p->previous.line);
 
         } else {
             rfree(c, p, getLastAllocatedRegister(c));
             ido_uint32 resultR = ralloc(c, p);
-            writeToProgram(currentProgram(), ENC_GET_GLOBAL(arg, resultR), p->previous.line);
+            writeToProgram(&c->function->program, ENC_GET_GLOBAL(arg, resultR), p->previous.line);
         }
     }
     
@@ -453,10 +454,10 @@ static void unary(Parser *p, Scanner *sc, Compiler* c, bool canAssign){
     switch (opType)
     {
     case T_MINUS:
-        writeToProgram(currentProgram(), ENC_NEG(r), p->previous.line);
+        writeToProgram(&c->function->program, ENC_NEG(r), p->previous.line);
         break;
     case T_BANG:
-        writeToProgram(currentProgram(), ENC_NOT(r), p->previous.line);
+        writeToProgram(&c->function->program, ENC_NOT(r), p->previous.line);
         break;
     default: return;
     }
@@ -475,6 +476,30 @@ static void block(Parser *p, Scanner *sc, Compiler* c){
     consume(p, sc, c, T_RIGHT_BRACE, "expect '}' after block");
 }
 
+static void function(Parser *p, Scanner *sc, Compiler* c, FunctionType type){
+    Compiler* cf = initCompiler(c->tvm, p, type);
+    beginScope(cf);
+
+    consume(p, sc, cf, T_LEFT_PAREN, "expect '(' after function name");
+    if(!check(p, sc, T_RIGHT_PAREN)){
+        do {
+            cf->function->arity++;
+            if(cf->function->arity > 100){
+                errorAtCurrent(p, "can't have more than 100 parameters");
+            }
+            ido_uint32 constant = parseVariable(p, sc, cf, "expect parameter name");
+            defineVariable(p, cf, constant);
+
+        } while (match(p, sc, cf, T_COMMA));
+    }
+    consume(p, sc, cf, T_RIGHT_PAREN, "expect ')' after parameters");
+    consume(p, sc, cf, T_LEFT_BRACE, "expect '{' before function body");
+    block(p, sc, cf);
+
+    ObjFunction* f = endCompilation(cf, p);
+    emitConstant(p, c, OBJ_VAL(f));
+}
+
 static void varDeclaration(Parser *p, Scanner *sc, Compiler* c){
 
     ido_uint32 global = parseVariable(p, sc, c, "expect var name"); // Get the constant index of the string name
@@ -485,12 +510,21 @@ static void varDeclaration(Parser *p, Scanner *sc, Compiler* c){
 
     }  else {
         ido_uint32 resultR = ralloc(c, p);
-        writeToProgram(currentProgram(), ENC_NIL(resultR), p->previous.line); // else it does not have a initial value, allocate a nil instead
+        writeToProgram(&c->function->program, ENC_NIL(resultR), p->previous.line); // else it does not have a initial value, allocate a nil instead
     }
 
     consume(p, sc, c, T_SEMICOLON, "expect ';' after var declaration");
     defineVariable(p, c, global);
 
+}
+
+static void fnDeclaration(Parser *p, Scanner *sc, Compiler* c){
+    ido_uint32 global = parseVariable(p, sc, c, "expect function name"); // Get the constant index of the string name
+    rfree(c, p, getLastAllocatedRegister(c));
+
+    markInitialized(p, c);
+    function(p, sc, c, TYPE_FUNCTION);
+    defineVariable(p, c, global);
 }
 
 static void expressionStatement(Parser *p, Scanner *sc, Compiler* c){
@@ -511,18 +545,18 @@ static void ifStatement(Parser *p, Scanner *sc, Compiler* c){
     int elseJump = writeJump(p, c);
 
 
-    patchJump(p, thenJump);
+    patchJump(p, c, thenJump);
 
     if(match(p, sc, c, T_ELSE)){
         statement(p, sc, c);
     }
 
-    patchJump(p, elseJump);
+    patchJump(p, c, elseJump);
 
 }
 
 static void whileStatement(Parser *p, Scanner *sc, Compiler* c){
-    int loopStart = currentProgram()->count;
+    int loopStart = c->function->program.count;
     consume(p, sc, c, T_LEFT_PAREN, "expect '(' after 'while'");
     expression(p, sc, c);
     consume(p, sc, c, T_RIGHT_PAREN, "expect ')' after condition");
@@ -533,7 +567,7 @@ static void whileStatement(Parser *p, Scanner *sc, Compiler* c){
     statement(p, sc, c);
     writeLoop(p, c, loopStart);
 
-    patchJump(p, exitJump);
+    patchJump(p, c, exitJump);
 
 }   
 
@@ -550,7 +584,7 @@ static void forStatement(Parser *p, Scanner *sc, Compiler* c){
         expressionStatement(p, sc, c);
     }
 
-    int loopStart = currentProgram()->count;
+    int loopStart = c->function->program.count;
     int exitJump = -1;
     if(!match(p, sc, c, T_SEMICOLON)){
         expression(p, sc , c);
@@ -563,22 +597,23 @@ static void forStatement(Parser *p, Scanner *sc, Compiler* c){
     }
 
     if(!match(p, sc, c, T_RIGHT_PAREN)){
-        int bodyJump  =writeJump(p, c);
-        int incrementStart = currentProgram()->count; // offset of the increment instruction
+        int bodyJump  = writeJump(p, c);
+        int incrementStart = c->function->program.count; // offset of the increment instruction
+
         expression(p, sc, c);
         rfree(c, p, getLastAllocatedRegister(c));
         consume(p, sc, c, T_RIGHT_PAREN, "expect ')' after 'for' clauses");
 
         writeLoop(p, c, loopStart);
         loopStart = incrementStart;
-        patchJump(p, bodyJump);
+        patchJump(p, c, bodyJump);
     }   
 
     statement(p, sc , c);
     writeLoop(p, c, loopStart);
 
     if(exitJump != - 1){
-        patchJump(p, exitJump);
+        patchJump(p, c, exitJump);
     }
 
     endScope(p, c);
@@ -587,7 +622,7 @@ static void forStatement(Parser *p, Scanner *sc, Compiler* c){
 static void printStatement(Parser *p, Scanner *sc, Compiler* c){
     expression(p, sc, c);
     consume(p, sc, c, T_SEMICOLON, "expect ';' after value");
-    writeToProgram(currentProgram(), ENC_PRINT(getLastAllocatedRegister(c)), p->previous.line);
+    writeToProgram(&c->function->program, ENC_PRINT(getLastAllocatedRegister(c)), p->previous.line);
     rfree(c, p, getLastAllocatedRegister(c));
 }
 
@@ -614,11 +649,17 @@ static void sync(Parser *p, Scanner *sc, Compiler* c){
 }
 
 static void declaration(Parser *p, Scanner *sc, Compiler* c){
-    if(match(p, sc, c, T_VAR)){
+    if(match(p, sc, c, T_FN)){
+        fnDeclaration(p, sc, c);
+
+    } else if(match(p, sc, c, T_VAR)){
         varDeclaration(p, sc, c);
+
     } else {
         statement(p, sc, c);
+
     }
+
     if(p->panicMode) sync(p, sc, c);
 }
 
@@ -666,34 +707,34 @@ static void binary(Parser *p, Scanner *sc, Compiler* c, bool canAssign){
     switch (opType)
     {
     case T_BANG_EQUAL: 
-        writeToProgram(currentProgram(), ENC_BANG_EQUAL(resultR, leftR, rightR), p->previous.line);
+        writeToProgram(&c->function->program, ENC_BANG_EQUAL(resultR, leftR, rightR), p->previous.line);
         break;
     case T_EQUAL_EQUAL: 
-        writeToProgram(currentProgram(), ENC_EQUAL(resultR, leftR, rightR), p->previous.line);
+        writeToProgram(&c->function->program, ENC_EQUAL(resultR, leftR, rightR), p->previous.line);
         break;
     case T_GREATER: 
-        writeToProgram(currentProgram(), ENC_GREATER(resultR, leftR, rightR), p->previous.line);
+        writeToProgram(&c->function->program, ENC_GREATER(resultR, leftR, rightR), p->previous.line);
         break;
     case T_LESS: 
-        writeToProgram(currentProgram(), ENC_LESS(resultR, leftR, rightR), p->previous.line);
+        writeToProgram(&c->function->program, ENC_LESS(resultR, leftR, rightR), p->previous.line);
         break;
     case T_LESS_EQUAL: 
-        writeToProgram(currentProgram(), ENC_LESS_EQUAL(resultR, leftR, rightR), p->previous.line);
+        writeToProgram(&c->function->program, ENC_LESS_EQUAL(resultR, leftR, rightR), p->previous.line);
         break;
     case T_GREATER_EQUAL: 
-        writeToProgram(currentProgram(), ENC_GREATER_EQUAL(resultR, leftR, rightR), p->previous.line);
+        writeToProgram(&c->function->program, ENC_GREATER_EQUAL(resultR, leftR, rightR), p->previous.line);
         break;
     case T_PLUS:
-        writeToProgram(currentProgram(), ENC_ADD(resultR, leftR, rightR), p->previous.line);
+        writeToProgram(&c->function->program, ENC_ADD(resultR, leftR, rightR), p->previous.line);
         break;
     case T_MINUS:
-        writeToProgram(currentProgram(), ENC_SUB(resultR, leftR, rightR), p->previous.line);
+        writeToProgram(&c->function->program, ENC_SUB(resultR, leftR, rightR), p->previous.line);
         break;
     case T_STAR:
-        writeToProgram(currentProgram(), ENC_MUL(resultR, leftR, rightR), p->previous.line);
+        writeToProgram(&c->function->program, ENC_MUL(resultR, leftR, rightR), p->previous.line);
         break;
     case T_SLASH:
-        writeToProgram(currentProgram(), ENC_DIV(resultR, leftR, rightR), p->previous.line);
+        writeToProgram(&c->function->program, ENC_DIV(resultR, leftR, rightR), p->previous.line);
         break;
     default: return;
     }
@@ -704,9 +745,9 @@ static void literal(Parser *p, Scanner *sc, Compiler* c, bool canAssign){
     ido_uint32 resultR = ralloc(c, p);
 
     switch (p->previous.type) {
-        case T_TRUE:  writeToProgram(currentProgram(), ENC_TRUE(resultR), p->previous.line); break;
-        case T_FALSE: writeToProgram(currentProgram(), ENC_FALSE(resultR), p->previous.line); break;
-        case T_NIL:   writeToProgram(currentProgram(), ENC_NIL(resultR), p->previous.line); break;
+        case T_TRUE:  writeToProgram(&c->function->program, ENC_TRUE(resultR), p->previous.line); break;
+        case T_FALSE: writeToProgram(&c->function->program, ENC_FALSE(resultR), p->previous.line); break;
+        case T_NIL:   writeToProgram(&c->function->program, ENC_NIL(resultR), p->previous.line); break;
         default: return;
     }
 
@@ -758,9 +799,8 @@ static ParseRule* getRule(TokenType t){
 }
 
 ObjFunction* compile( Scanner* sc, Parser* p, TVM* tvm){
-    Compiler* c = initCompiler(tvm, TYPE_SCRIPT);
+    Compiler* c = initCompiler(tvm, p, TYPE_SCRIPT);
 
-    compilingProgram = &c->function->program;
 
     p->panicMode = false;
     p->hadError = false;
@@ -769,10 +809,10 @@ ObjFunction* compile( Scanner* sc, Parser* p, TVM* tvm){
     while(!match(p, sc, c, T_EOF)){
         declaration(p, sc, c);
     }
+
     ObjFunction* f =  endCompilation(c, p);
 
-    printBytecodeSimple(compilingProgram);
-
+    printBytecodeSimple(&f->program);
     freeCompiler(c);
 
     return p->hadError ? NULL : f;
