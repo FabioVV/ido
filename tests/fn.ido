@@ -1,6 +1,8 @@
-fn itsafn(a,b,c){
-    print "a print..... inside of a function.....";
+fn thetruth(){
+    print "Chris is king.";
 }
+print thetruth;
 
+thetruth();
 
-print itsafn;
+print "after fn call";

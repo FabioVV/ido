@@ -177,7 +177,10 @@ static void errorAtCurrent(Parser* p, const char* message){
 }
 
 static void inline emitReturn(Compiler* c, Parser* p){
+    ido_uint32 r = ralloc(c, p);
+    writeToProgram(&c->function->program, ENC_NIL(r), p->previous.line);
     writeToProgram(&c->function->program, ENC_RETURN, p->previous.line);
+    rfree(c, p, r);
 }
 
 static ObjFunction* endCompilation(Compiler* c, Parser* p){
@@ -245,6 +248,13 @@ static ido_uint32 emitConstant(Parser *p, Compiler* c, Value v){
     writeToProgram(&c->function->program, ENC_CONSTANT(constantIndex, r), p->previous.line);
     return constantIndex;
 }
+
+// static ido_uint32 emitConstantFunction(Parser *p, Compiler* c, Value v){
+//     ido_uint32 constantIndex = createConstant(p, c, v);
+//     ido_uint32 r = ralloc(c, p);
+//     writeToProgram(&c->function->program, ENC_CONSTANT(constantIndex, r), p->previous.line);
+//     return constantIndex;
+// }
 
 static int writeJumpIfFalse(Parser *p, Compiler* c){
     writeToProgram(&c->function->program, ENC_JUMP_IF_FALSE(getLastAllocatedRegister(c)), p->previous.line);
@@ -496,6 +506,7 @@ static void function(Parser *p, Scanner *sc, Compiler* c, FunctionType type){
     consume(p, sc, cf, T_LEFT_BRACE, "expect '{' before function body");
     block(p, sc, cf);
 
+    endScope(p, cf);
     ObjFunction* f = endCompilation(cf, p);
     emitConstant(p, c, OBJ_VAL(f));
 }
@@ -626,6 +637,20 @@ static void printStatement(Parser *p, Scanner *sc, Compiler* c){
     rfree(c, p, getLastAllocatedRegister(c));
 }
 
+static void returnStatement(Parser *p, Scanner *sc, Compiler* c){
+    if(c->type == TYPE_SCRIPT){
+        error(p, "can't return from top level code");
+    }
+
+    if(match(p, sc, c, T_SEMICOLON)){
+        emitReturn(c, p);
+    } else {
+        expression(p, sc, c);
+        consume(p, sc, c, T_SEMICOLON, "expect ';' after return value");
+        writeToProgram(&c->function->program, ENC_RETURN, p->previous.line);
+    }
+}
+
 static void sync(Parser *p, Scanner *sc, Compiler* c){
     p->panicMode = false;
     
@@ -675,6 +700,9 @@ static void statement(Parser *p, Scanner *sc, Compiler* c){
 
     } else if(match(p, sc, c, T_FOR)){
         forStatement(p, sc, c); 
+
+    } else if(match(p, sc, c, T_RETURN)){
+        returnStatement(p, sc, c);
 
     } else if(match(p, sc, c, T_LEFT_BRACE)){
         beginScope(c);
@@ -743,22 +771,25 @@ static void binary(Parser *p, Scanner *sc, Compiler* c, bool canAssign){
 
 static uint8_t argumentList(Parser *p, Scanner *sc, Compiler* c){
     uint8_t argCount = 0;
+    
     if(!check(p, sc, T_RIGHT_PAREN)){
         do {
             expression(p, sc, c);
+            
             if(argCount == 100){
                 errorAtCurrent(p, "can't have more than 100 parameters");
             }
             argCount++;
         } while(match(p, sc, c, T_COMMA));
     }
-
+    consume(p, sc, c, T_RIGHT_PAREN, "expect ')' after arguments.");
     return argCount;
 }
 
 static void call(Parser *p, Scanner *sc, Compiler* c, bool canAssign){
+    ido_uint32 rFunction = getLastAllocatedRegister(c);
     uint8_t argCount = argumentList(p, sc, c);
-    writeToProgram(&c->function->program, ENC_CALL(argCount), p->previous.line);
+    writeToProgram(&c->function->program, ENC_CALL(argCount, rFunction), p->previous.line);
 }
 
 static void literal(Parser *p, Scanner *sc, Compiler* c, bool canAssign){

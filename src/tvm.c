@@ -20,13 +20,14 @@ TVM* initVM(){
         fprintf(stderr, "error allocating tvm: not enough memory");
         exit(1);
     }
+
     resetStack(tvm);
     for (int i = 0; i < REGISTERS_NUM; i++) {
         tvm->registers[i] = NIL_VAL();
-        tvm->allocatedRegisters[i] = false;  // All registers are initially free (may change)
+        tvm->allocatedRegisters[i] = false;  // All registers are initially free
     }
 
-    tvm->last_allocated_register = INVALID_REGISTER; // Initialize with an invalid register
+    tvm->last_allocated_register = INVALID_REGISTER;
     tvm->free_register_count = REGISTERS_NUM;
     // tvm->pc = 0;
     tvm->objects = NULL;
@@ -46,6 +47,10 @@ static Value pop(TVM* tvm) {
     return *tvm->stackTop;
 }
 
+static Value peek(TVM* tvm, int distance) {
+  return tvm->stackTop[-1 - distance];
+}
+
 void freeVM(TVM* tvm){
     freeTable(&tvm->strings);
     freeTable(&tvm->globals);
@@ -54,10 +59,17 @@ void freeVM(TVM* tvm){
 
 static void runtimeErr(TVM* tvm, const char* format, ...){
 
-    CallFrame* frame = &tvm->frames[tvm->frameCount - 1];
-    size_t inst = frame->pc - frame->function->program.code - 1;
-    int line = frame->function->program.lines[inst];
-    fprintf(stderr, "[line %d] in script \n", line);
+    for(int i = tvm->frameCount - 1; i >=0; i--){
+        CallFrame* frame = &tvm->frames[i];
+        ObjFunction* f = frame->function;
+        size_t inst = frame->pc - frame->function->program.code - 1;
+        fprintf(stderr, "[line %d] in ", f->program.lines[inst]);
+        if(f->name == NULL){
+            fprintf(stderr, "script\n");
+        } else {
+            fprintf(stderr, "%s()\n", f->name->chars);
+        }
+    }
 
     va_list args;
     va_start(args, format);
@@ -65,7 +77,7 @@ static void runtimeErr(TVM* tvm, const char* format, ...){
     va_end(args);
     fputs("\n", stderr);
 
-
+    resetStack(tvm);
 }
 
 static bool isFalsey(Value v){
@@ -86,9 +98,39 @@ static inline void concatenate(TVM* tvm, Value rA, Value rB, ido_uint32 dstR){
     tvm->registers[dstR] = OBJ_VAL(result);
 }
 
+static bool call(TVM* tvm, ObjFunction* f, int agrCount){
+    if(agrCount != f->arity){
+        runtimeErr(tvm, "expected %d arguments but got %d", f->arity, agrCount);
+        return false;
+    }
+
+    if(tvm->frameCount == FRAMES_NUM){
+        runtimeErr(tvm, "stack overflow");
+        return false;
+    }
+
+    CallFrame* frame = &tvm->frames[tvm->frameCount++];
+    frame->function = f;
+    frame->pc = f->program.code;
+    frame->slots = tvm->stackTop  - 1;
+    return true;
+}
+
+static bool callValue(TVM* tvm, Value calee, uint8_t argCount){
+    if(IS_OBJ(calee)){
+        switch (OBJ_TYPE(calee))
+        {
+        case OBJ_FUNCTION: return  call(tvm, AS_FUNCTION(calee), argCount);
+        default: break;
+        }
+    }   
+    runtimeErr(tvm, "tried calling non-function");
+    return false;
+}
 
 static InterpretResult runVM(TVM* tvm){
     register CallFrame* frame = &tvm->frames[tvm->frameCount - 1];
+    
     #define ibreak break
     #define GET_CONSTANT(index) (frame->function->program.constants.values[index])
     #define READ_STRING(value) AS_STRING(value)
@@ -311,8 +353,25 @@ static InterpretResult runVM(TVM* tvm){
             frame->pc -= offset;
             ibreak;
         }
+        case OP_CALL:{
+            uint8_t argCount = DEC_CALL_ARGUMENT_COUNT(i);
+            ido_uint32 rFunction = DEC_CALL_FUNCTION(i);
+
+            if(!callValue(tvm, tvm->registers[rFunction], argCount)){
+                return INTERPRET_RUNTIME_ERROR;
+            }
+            frame = &tvm->frames[tvm->frameCount - 1];
+            ibreak;
+        }
         case OP_RETURN:{
-            return INTERPRET_OK;
+            // pop result
+            tvm->frameCount--;
+            if(tvm->frameCount == 0){
+                return INTERPRET_OK;
+            }
+            tvm->stackTop = frame->slots;
+            //push
+            frame = &tvm->frames[tvm->frameCount - 1];
             ibreak;
         }
         case OP_HLT:
@@ -337,11 +396,7 @@ InterpretResult interpret(TVM* tvm, Scanner* sc, Parser* p){
     if(function == NULL) return INTERPRET_COMPILE_ERROR;
 
     push(tvm, OBJ_VAL(function));
-
-    CallFrame* frame = &tvm->frames[tvm->frameCount++];
-    frame->function = function;
-    frame->pc = function->program.code;
-    frame->slots = tvm->stack;
+    call(tvm, function, 0);
 
     return runVM(tvm);
 }

@@ -36,6 +36,7 @@ void printBytecodeSimple(Program* prog){
         [OP_JUMP]    = {"OP_JUMP"},
         [OP_LOOP]    = {"OP_LOOP"},
         [OP_RETURN]    = {"OP_RETURN"},
+        [OP_CALL]    = {"OP_CALL"},
         [OP_HLT]    = {"OP_HLT"},
     };
 

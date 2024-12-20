@@ -100,8 +100,9 @@ typedef enum {
 
 #define ENC_LOOP() (OP_LOOP << 26)
 
-#define ENC_CALL(argCount) (OP_CALL << 26) | (argCount & 0x03FFFFFF)
-#define DEC_CALL_ARGUMENT_COUNT(instruction)     ((instruction) & 0x03FFFFFF)
+#define ENC_CALL(argCount, rFunction) (OP_CALL << 26) | (argCount << 18 ) |  (rFunction & 0x1FFFF)
+#define DEC_CALL_ARGUMENT_COUNT(instruction)    ((i >> 18) & 0xFF)
+#define DEC_CALL_FUNCTION(instruction)     ((instruction) & 0x1FFFF)
 
 
 #define ENC_PRINT(rIndex)            (OP_PRINT << 26) | (rIndex & 0x03FFFFFF)
