@@ -741,6 +741,26 @@ static void binary(Parser *p, Scanner *sc, Compiler* c, bool canAssign){
 
 }
 
+static uint8_t argumentList(Parser *p, Scanner *sc, Compiler* c){
+    uint8_t argCount = 0;
+    if(!check(p, sc, T_RIGHT_PAREN)){
+        do {
+            expression(p, sc, c);
+            if(argCount == 100){
+                errorAtCurrent(p, "can't have more than 100 parameters");
+            }
+            argCount++;
+        } while(match(p, sc, c, T_COMMA));
+    }
+
+    return argCount;
+}
+
+static void call(Parser *p, Scanner *sc, Compiler* c, bool canAssign){
+    uint8_t argCount = argumentList(p, sc, c);
+    writeToProgram(&c->function->program, ENC_CALL(argCount), p->previous.line);
+}
+
 static void literal(Parser *p, Scanner *sc, Compiler* c, bool canAssign){
     ido_uint32 resultR = ralloc(c, p);
 
@@ -754,7 +774,7 @@ static void literal(Parser *p, Scanner *sc, Compiler* c, bool canAssign){
 }
 
 ParseRule rules[] = {
-  [T_LEFT_PAREN]    = {grouping, NULL,   PREC_NONE},
+  [T_LEFT_PAREN]    = {grouping, call,   PREC_CALL},
   [T_RIGHT_PAREN]   = {NULL,     NULL,   PREC_NONE},
   [T_LEFT_BRACE]    = {NULL,     NULL,   PREC_NONE}, 
   [T_RIGHT_BRACE]   = {NULL,     NULL,   PREC_NONE},

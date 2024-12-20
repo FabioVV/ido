@@ -42,6 +42,8 @@ typedef enum {
 
     OP_LOOP,
 
+    OP_CALL,
+
     OP_RETURN,
     OP_HLT, // Halts the vm
 } Opcode;
@@ -84,8 +86,6 @@ typedef enum {
 #define ENC_EQUAL(dstr, ra, rb)          ((OP_EQUAL         << 26) | ((dstr & 0xFF) << 18) | ((ra & 0xFF) << 10) | (rb))
 #define ENC_BANG_EQUAL(dstr, ra, rb)     ((OP_BANG_EQUAL    << 26) | ((dstr & 0xFF) << 18) | ((ra & 0xFF) << 10) | (rb))
 
-
-
 #define ENC_DEFINE_GLOBAL(rReadFrom, cIndex)       (OP_DEFINE_GLOBAL << 26) | (rReadFrom << 18) | (cIndex & 0x1FFFF) // TODO: look at possibility to remove this instruction an use SET_GLOBAL instead
 #define ENC_GET_GLOBAL(cIndex, r)       (OP_GET_GLOBAL << 26)  | (r << 18) | (cIndex & 0x1FFFF)
 #define ENC_SET_GLOBAL(rReadFrom, cIndex)       (OP_SET_GLOBAL << 26) | (rReadFrom << 18) | (cIndex & 0x1FFFF)
@@ -99,6 +99,10 @@ typedef enum {
 #define GET_JUMP_OFFSET(i) (i & 0x3FFFF)
 
 #define ENC_LOOP() (OP_LOOP << 26)
+
+#define ENC_CALL(argCount) (OP_CALL << 26) | (argCount & 0x03FFFFFF)
+#define DEC_CALL_ARGUMENT_COUNT(instruction)     ((instruction) & 0x03FFFFFF)
+
 
 #define ENC_PRINT(rIndex)            (OP_PRINT << 26) | (rIndex & 0x03FFFFFF)
 #define ENC_RETURN                   (OP_RETURN << 26) 

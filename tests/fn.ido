@@ -1,4 +1,4 @@
-fn itsafn(){
+fn itsafn(a,b,c){
     print "a print..... inside of a function.....";
 }
 
