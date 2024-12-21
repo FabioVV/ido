@@ -8,7 +8,7 @@
 #include "tvm.h"
 
 
-#define LOCALS_NUM 250
+#define LOCALS_NUM 200
 
 typedef enum {
     PREC_NONE,
@@ -52,7 +52,7 @@ typedef struct {
     ObjFunction* function;
     FunctionType type;
 
-    Local locals[LOCALS_NUM];// What a strange limit...
+    Local locals[LOCALS_NUM]; // What a strange limit...
     // LiveInterval liveIntervals; 
     int localCount;
     int scopeDepth;

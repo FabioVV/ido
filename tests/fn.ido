@@ -1,5 +1,5 @@
 fn thetruth(){
-    print "Chris is king.";
+    print "Christ is king.";
 }
 print thetruth;
 

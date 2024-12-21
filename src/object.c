@@ -90,6 +90,7 @@ static Obj* allocateObj(TVM* tvm, size_t size, ObjType type){
 ObjFunction* newFunction(TVM* tvm){
     ObjFunction* f = ALLOCATE_OBJ(tvm, ObjFunction, OBJ_FUNCTION);
     f->arity = 0;
+    f->parametersCount = 0;
     f->name = NULL;
     initProgram(&f->program);
     return f;

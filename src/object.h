@@ -2,6 +2,7 @@
 #define IDO_OBJECT
 
 #include "common.h"
+#include "compiler.h"
 #include "value.h"
 #include "instruction.h"
 #include "tvm.h"
@@ -25,9 +26,22 @@ struct Obj {
     struct Obj* next;
 }; 
 
+
+// basically the same idea from locals in the compiler, the difference here is that
+// i needed to do this because after the `locals` (read parameters) and the fuction
+// had been compiled, i had no way of accesing those locals to initialize them with
+// arguments, because once the compilations of the function was done, its `compiler`
+// would be lost
+typedef struct {
+    Token name;
+    uint8_t registerIndex;
+} Parameter;
+
 struct ObjFunction{
     Obj obj;
     int arity;
+    int parametersCount;
+    Parameter parameters[LOCALS_NUM];
     Program program;
     ObjString* name;
 };

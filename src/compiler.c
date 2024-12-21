@@ -1,3 +1,4 @@
+#include <stdint.h>
 #include <stdio.h>
 #include <string.h>
 #include "memory.h"
@@ -341,16 +342,37 @@ static int resolveLocal(Parser *p, Compiler* c, Token* name){
     return -1;
 }
 
+static int resolveParams(Parser *p, Compiler* c, Token* name){
+    for(int i = c->function->parametersCount - 1; i >= 0; i--){
+        Parameter* param = &c->function->parameters[i];
+        if(identifiersEqual(name, &param->name)){
+            return param->registerIndex;
+        }
+    }
+    return -1;
+}
+
 static void addLocal(Parser *p, Compiler* c, Token name){
     if(c->localCount == LOCALS_NUM){
         error(p, "too many local variables in function");
         return;
     }
-    ido_uint32 r = ralloc(c, p);
-    Local* local = &c->locals[c->localCount++];
-    local->name = name;
-    local->depth =-1;
-    local->registerIndex = r;
+
+    if(c->type == TYPE_SCRIPT){
+        ido_uint32 r = ralloc(c, p);
+        Local* local = &c->locals[c->localCount++];
+        local->name = name;
+        local->depth =-1;
+        local->registerIndex = r;
+
+    } else if(c->type == TYPE_FUNCTION) {
+        Parameter* param = &c->function->parameters[c->function->parametersCount++];
+        param->name = name;
+        param->registerIndex = -1;
+
+    }
+
+
 }
 
 static void declareVariable(Parser *p, Compiler* c){
@@ -374,7 +396,13 @@ static ido_uint32 parseVariable(Parser *p, Scanner *sc, Compiler* c, const char*
 static void markInitialized(Parser *p, Compiler* c){
     if(c->scopeDepth == 0) return;
     c->locals[c->localCount - 1].depth = c->scopeDepth;
-    writeToProgram(&c->function->program, ENC_SET_LOCAL(getLastAllocatedRegister(c), c->locals[c->localCount - 1].registerIndex), p->previous.line);
+
+
+    if(c->type == TYPE_SCRIPT){
+        writeToProgram(&c->function->program, ENC_SET_LOCAL(getLastAllocatedRegister(c), c->locals[c->localCount - 1].registerIndex), p->previous.line);
+    }
+
+
 }
 
 static void defineVariable(Parser *p, Compiler* c, ido_uint32 global){
@@ -424,6 +452,13 @@ static void string(Parser *p, Scanner *sc, Compiler* c, bool canAssign){ // TODO
 static void namedVariable(Parser *p, Scanner *sc, Compiler* c, Token name, bool canAssign){
     ido_uint32 arg = resolveLocal(p, c, &name);
     // I know this routine sucks, i will refactor it later. (Ah yes, 'refactor it later'. Sure. Obvioulsly that will happen.)
+
+    if(c->type == TYPE_FUNCTION){
+        // ido_uint32 argP = resolveParams(p, c, &name);
+        // ido_uint32 resultR = ralloc(c, p);
+        // writeToProgram(&c->function->program, ENC_GET_LOCAL(arg, resultR), p->previous.line);
+        // return;
+    } //CHECK THISSSSS
 
     if(arg != -1){
         if(canAssign && match(p, sc, c, T_EQUAL)){
@@ -508,6 +543,8 @@ static void function(Parser *p, Scanner *sc, Compiler* c, FunctionType type){
 
     endScope(p, cf);
     ObjFunction* f = endCompilation(cf, p);
+    printBytecodeSimple(&f->program);
+
     emitConstant(p, c, OBJ_VAL(f));
 }
 
@@ -771,11 +808,12 @@ static void binary(Parser *p, Scanner *sc, Compiler* c, bool canAssign){
 
 static uint8_t argumentList(Parser *p, Scanner *sc, Compiler* c){
     uint8_t argCount = 0;
-    
+
+
     if(!check(p, sc, T_RIGHT_PAREN)){
         do {
             expression(p, sc, c);
-            
+
             if(argCount == 100){
                 errorAtCurrent(p, "can't have more than 100 parameters");
             }
@@ -787,8 +825,13 @@ static uint8_t argumentList(Parser *p, Scanner *sc, Compiler* c){
 }
 
 static void call(Parser *p, Scanner *sc, Compiler* c, bool canAssign){
-    ido_uint32 rFunction = getLastAllocatedRegister(c);
+    ido_uint32 rFunction = getLastAllocatedRegister(c); // Register index where the function object is
     uint8_t argCount = argumentList(p, sc, c);
+
+    // for(uint8_t i = rFunction; i < argCount; i++){
+    //     c->function->parameters[i].registerIndex = i;
+    // }
+
     writeToProgram(&c->function->program, ENC_CALL(argCount, rFunction), p->previous.line);
 }
 

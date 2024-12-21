@@ -1,11 +1,13 @@
 // The tania VM
 #include "tvm.h"
+#include <stdint.h>
 #include <stdarg.h>
 #include <string.h>
 #include "common.h"
 #include "compiler.h"
 #include "object.h"
 #include "memory.h"
+#include "value.h"
 
 
 static void resetStack(TVM* tvm){
@@ -58,6 +60,7 @@ void freeVM(TVM* tvm){
 }
 
 static void runtimeErr(TVM* tvm, const char* format, ...){
+    fprintf(stderr, "\n");
 
     for(int i = tvm->frameCount - 1; i >=0; i--){
         CallFrame* frame = &tvm->frames[i];
@@ -77,6 +80,7 @@ static void runtimeErr(TVM* tvm, const char* format, ...){
     va_end(args);
     fputs("\n", stderr);
 
+    fprintf(stderr, "\n");
     resetStack(tvm);
 }
 
@@ -100,19 +104,22 @@ static inline void concatenate(TVM* tvm, Value rA, Value rB, ido_uint32 dstR){
 
 static bool call(TVM* tvm, ObjFunction* f, int agrCount){
     if(agrCount != f->arity){
-        runtimeErr(tvm, "expected %d arguments but got %d", f->arity, agrCount);
+        runtimeErr(tvm, "   on fn<%s> call expected %d arguments but got %d", f->name->chars, f->arity, agrCount);
         return false;
     }
 
     if(tvm->frameCount == FRAMES_NUM){
-        runtimeErr(tvm, "stack overflow");
+        runtimeErr(tvm, "   stack overflow");
         return false;
     }
+
+
 
     CallFrame* frame = &tvm->frames[tvm->frameCount++];
     frame->function = f;
     frame->pc = f->program.code;
     frame->slots = tvm->stackTop  - 1;
+
     return true;
 }
 
@@ -124,7 +131,7 @@ static bool callValue(TVM* tvm, Value calee, uint8_t argCount){
         default: break;
         }
     }   
-    runtimeErr(tvm, "tried calling non-function");
+    runtimeErr(tvm, "   tried calling non-function");
     return false;
 }
 
@@ -356,6 +363,14 @@ static InterpretResult runVM(TVM* tvm){
         case OP_CALL:{
             uint8_t argCount = DEC_CALL_ARGUMENT_COUNT(i);
             ido_uint32 rFunction = DEC_CALL_FUNCTION(i);
+
+            ObjFunction* f = AS_FUNCTION(tvm->registers[rFunction]);
+
+            // for(uint8_t i = rFunction+1; i <= argCount; i++){
+            //     printValue(tvm->registers[i]);
+            //     printf("\n");
+            //     f->parameters[i].registerIndex = i;
+            // }
 
             if(!callValue(tvm, tvm->registers[rFunction], argCount)){
                 return INTERPRET_RUNTIME_ERROR;

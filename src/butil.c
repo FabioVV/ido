@@ -9,7 +9,7 @@ void printBytecodeSimple(Program* prog){
     ido_uint32* pc = prog->code;
 
     bytecodeInfo opnames[] = { // expand these later
-        [OP_LOAD]    = {"OP_PRINT"},
+        // [OP_LOAD]    = {"OP_LOAD"},
         [OP_CONSTANT]    = {"OP_CONSTANT"},
         [OP_PRINT]    = {"OP_PRINT"},
         [OP_DEFINE_GLOBAL]    = {"OP_DEFINE_GLOBAL"},

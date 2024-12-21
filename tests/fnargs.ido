@@ -1,5 +1,6 @@
 fn sum(a, b){
-    print "asd";
+    print a;
 }
+
 
 sum(1, 2);
