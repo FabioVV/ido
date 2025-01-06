@@ -113,8 +113,6 @@ static bool call(TVM* tvm, ObjFunction* f, int agrCount){
         return false;
     }
 
-
-
     CallFrame* frame = &tvm->frames[tvm->frameCount++];
     frame->function = f;
     frame->pc = f->program.code;
@@ -210,7 +208,7 @@ static InterpretResult runVM(TVM* tvm){
             ObjString* name = READ_STRING(GET_CONSTANT(constantIndex));
             Value v;
             if(!tableGet(&tvm->globals, name, &v)){
-                runtimeErr(tvm, "   undefined var '%s'", name->chars);
+                runtimeErr(tvm, "   undefined variable '%s'", name->chars);
                 return INTERPRET_RUNTIME_ERROR;
             }
             tvm->registers[rD] = v;
@@ -226,7 +224,7 @@ static InterpretResult runVM(TVM* tvm){
 
             if(tableSet(&tvm->globals, name, v)){
                 tableDelete(&tvm->globals, name);
-                runtimeErr(tvm, "   undefined var '%s'", name->chars);
+                runtimeErr(tvm, "   undefined variable '%s'", name->chars);
                 return INTERPRET_RUNTIME_ERROR;
             }
             ibreak;
@@ -366,12 +364,6 @@ static InterpretResult runVM(TVM* tvm){
 
             ObjFunction* f = AS_FUNCTION(tvm->registers[rFunction]);
 
-            // for(uint8_t i = rFunction+1; i <= argCount; i++){
-            //     printValue(tvm->registers[i]);
-            //     printf("\n");
-            //     f->parameters[i].registerIndex = i;
-            // }
-
             if(!callValue(tvm, tvm->registers[rFunction], argCount)){
                 return INTERPRET_RUNTIME_ERROR;
             }
@@ -410,7 +402,6 @@ InterpretResult interpret(TVM* tvm, Scanner* sc, Parser* p){
     ObjFunction* function = compile(sc, p, tvm);
     if(function == NULL) return INTERPRET_COMPILE_ERROR;
 
-    push(tvm, OBJ_VAL(function));
     call(tvm, function, 0);
 
     return runVM(tvm);

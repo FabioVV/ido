@@ -369,7 +369,6 @@ static void addLocal(Parser *p, Compiler* c, Token name){
         Parameter* param = &c->function->parameters[c->function->parametersCount++];
         param->name = name;
         param->registerIndex = -1;
-
     }
 
 
@@ -379,7 +378,6 @@ static void declareVariable(Parser *p, Compiler* c){
     if(c->scopeDepth == 0) return;
     Token* name = &p->previous;
     addLocal(p, c, *name);
-
 }
 
 static ido_uint32 parseVariable(Parser *p, Scanner *sc, Compiler* c, const char* errorMessage){
@@ -454,10 +452,10 @@ static void namedVariable(Parser *p, Scanner *sc, Compiler* c, Token name, bool 
     // I know this routine sucks, i will refactor it later. (Ah yes, 'refactor it later'. Sure. Obvioulsly that will happen.)
 
     if(c->type == TYPE_FUNCTION){
-        // ido_uint32 argP = resolveParams(p, c, &name);
-        // ido_uint32 resultR = ralloc(c, p);
-        // writeToProgram(&c->function->program, ENC_GET_LOCAL(arg, resultR), p->previous.line);
-        // return;
+        ido_uint32 argP = resolveParams(p, c, &name);
+        ido_uint32 resultR = ralloc(c, p);
+        writeToProgram(&c->function->program, ENC_GET_LOCAL(argP, resultR), p->previous.line);
+        return;
     } //CHECK THISSSSS
 
     if(arg != -1){
@@ -809,10 +807,11 @@ static void binary(Parser *p, Scanner *sc, Compiler* c, bool canAssign){
 static uint8_t argumentList(Parser *p, Scanner *sc, Compiler* c){
     uint8_t argCount = 0;
 
-
     if(!check(p, sc, T_RIGHT_PAREN)){
         do {
             expression(p, sc, c);
+            c->function->parameters[argCount].registerIndex = getLastAllocatedRegister(c);
+            printf("%d \n" ,c->function->parameters[argCount].registerIndex);
 
             if(argCount == 100){
                 errorAtCurrent(p, "can't have more than 100 parameters");
@@ -827,10 +826,6 @@ static uint8_t argumentList(Parser *p, Scanner *sc, Compiler* c){
 static void call(Parser *p, Scanner *sc, Compiler* c, bool canAssign){
     ido_uint32 rFunction = getLastAllocatedRegister(c); // Register index where the function object is
     uint8_t argCount = argumentList(p, sc, c);
-
-    // for(uint8_t i = rFunction; i < argCount; i++){
-    //     c->function->parameters[i].registerIndex = i;
-    // }
 
     writeToProgram(&c->function->program, ENC_CALL(argCount, rFunction), p->previous.line);
 }
