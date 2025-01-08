@@ -38,6 +38,7 @@ void printBytecodeSimple(Program* prog){
         [OP_RETURN]    = {"OP_RETURN"},
         [OP_CALL]    = {"OP_CALL"},
         [OP_HLT]    = {"OP_HLT"},
+        [OP_LOAD_ARG]    = {"OP_LOAD_ARG"},
     };
 
     Instruction i;

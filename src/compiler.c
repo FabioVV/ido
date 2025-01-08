@@ -394,12 +394,9 @@ static ido_uint32 parseVariable(Parser *p, Scanner *sc, Compiler* c, const char*
 static void markInitialized(Parser *p, Compiler* c){
     if(c->scopeDepth == 0) return;
     c->locals[c->localCount - 1].depth = c->scopeDepth;
-
-
     if(c->type == TYPE_SCRIPT){
         writeToProgram(&c->function->program, ENC_SET_LOCAL(getLastAllocatedRegister(c), c->locals[c->localCount - 1].registerIndex), p->previous.line);
     }
-
 
 }
 
@@ -804,14 +801,14 @@ static void binary(Parser *p, Scanner *sc, Compiler* c, bool canAssign){
 
 }
 
-static uint8_t argumentList(Parser *p, Scanner *sc, Compiler* c){
+static uint8_t argumentList(Parser *p, Scanner *sc, Compiler* c, ido_uint32 rFunction){
     uint8_t argCount = 0;
 
     if(!check(p, sc, T_RIGHT_PAREN)){
         do {
             expression(p, sc, c);
-            c->function->parameters[argCount].registerIndex = getLastAllocatedRegister(c);
-            printf("%d \n" ,c->function->parameters[argCount].registerIndex);
+            writeToProgram(&c->function->program, ENC_LOAD_ARGUMENT(rFunction, argCount, argCount), p->previous.line);
+            // rfree(c, p, getLastAllocatedRegister(c));
 
             if(argCount == 100){
                 errorAtCurrent(p, "can't have more than 100 parameters");
@@ -825,7 +822,7 @@ static uint8_t argumentList(Parser *p, Scanner *sc, Compiler* c){
 
 static void call(Parser *p, Scanner *sc, Compiler* c, bool canAssign){
     ido_uint32 rFunction = getLastAllocatedRegister(c); // Register index where the function object is
-    uint8_t argCount = argumentList(p, sc, c);
+    uint8_t argCount = argumentList(p, sc, c, rFunction);
 
     writeToProgram(&c->function->program, ENC_CALL(argCount, rFunction), p->previous.line);
 }

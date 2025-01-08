@@ -46,6 +46,8 @@ typedef enum {
 
     OP_RETURN,
     OP_HLT, // Halts the vm
+    OP_LOAD_ARG,
+
 } Opcode;
 
 #if IS32INT
@@ -86,7 +88,7 @@ typedef enum {
 #define ENC_EQUAL(dstr, ra, rb)          ((OP_EQUAL         << 26) | ((dstr & 0xFF) << 18) | ((ra & 0xFF) << 10) | (rb))
 #define ENC_BANG_EQUAL(dstr, ra, rb)     ((OP_BANG_EQUAL    << 26) | ((dstr & 0xFF) << 18) | ((ra & 0xFF) << 10) | (rb))
 
-#define ENC_DEFINE_GLOBAL(rReadFrom, cIndex)       (OP_DEFINE_GLOBAL << 26) | (rReadFrom << 18) | (cIndex & 0x1FFFF) // TODO: look at possibility to remove this instruction an use SET_GLOBAL instead
+#define ENC_DEFINE_GLOBAL(rReadFrom, cIndex)       (OP_DEFINE_GLOBAL << 26) | (rReadFrom << 18) | (cIndex & 0x1FFFF) // TODO: look at the possibility to remove this instruction and use SET_GLOBAL instead
 #define ENC_GET_GLOBAL(cIndex, r)       (OP_GET_GLOBAL << 26)  | (r << 18) | (cIndex & 0x1FFFF)
 #define ENC_SET_GLOBAL(rReadFrom, cIndex)       (OP_SET_GLOBAL << 26) | (rReadFrom << 18) | (cIndex & 0x1FFFF)
 #define DEC_GET_GLOBAL_CINDEX(instruction)     ((instruction) & 0x03FFFFFF)
@@ -104,6 +106,10 @@ typedef enum {
 #define DEC_CALL_ARGUMENT_COUNT(instruction)    ((i >> 18) & 0xFF)
 #define DEC_CALL_FUNCTION(instruction)     ((instruction) & 0x1FFFF)
 
+#define ENC_LOAD_ARGUMENT(rFunction, rArgument, argCount) (OP_LOAD_ARG << 26) | ((rArgument & 0xFF) << 18) | ((rFunction & 0xFF) << 10) | (argCount)
+#define DEC_CALL_ARGUMENT(i)    ((i >> 18) & 0xFF)
+#define DEC_FUNCTION(i)           ((i >> 10) & 0xFF)
+#define DEC_ARG_COUNT(i)           ((i & 0x1FF))
 
 #define ENC_PRINT(rIndex)            (OP_PRINT << 26) | (rIndex & 0x03FFFFFF)
 #define ENC_RETURN                   (OP_RETURN << 26) 

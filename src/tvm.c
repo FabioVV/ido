@@ -358,6 +358,16 @@ static InterpretResult runVM(TVM* tvm){
             frame->pc -= offset;
             ibreak;
         }
+        case OP_LOAD_ARG:{
+            ido_uint32 rArg = DEC_CALL_ARGUMENT(i);
+            ido_uint32 rFunction = DEC_FUNCTION(i);
+            ido_uint32 argCount = DEC_ARG_COUNT(i);
+    
+            ObjFunction* f = AS_FUNCTION(tvm->registers[rFunction]);
+            f->parameters[argCount].registerIndex = rArg;
+
+            ibreak;
+        }
         case OP_CALL:{
             uint8_t argCount = DEC_CALL_ARGUMENT_COUNT(i);
             ido_uint32 rFunction = DEC_CALL_FUNCTION(i);
