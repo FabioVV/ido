@@ -116,7 +116,6 @@ static bool call(TVM* tvm, ObjFunction* f, int agrCount){
     CallFrame* frame = &tvm->frames[tvm->frameCount++];
     frame->function = f;
     frame->pc = f->program.code;
-    frame->slots = tvm->stackTop  - 1;
 
     return true;
 }
@@ -358,20 +357,29 @@ static InterpretResult runVM(TVM* tvm){
             frame->pc -= offset;
             ibreak;
         }
-        case OP_LOAD_ARG:{
-            ido_uint32 rArg = DEC_CALL_ARGUMENT(i);
-            ido_uint32 rFunction = DEC_FUNCTION(i);
-            ido_uint32 argCount = DEC_ARG_COUNT(i);
-    
-            ObjFunction* f = AS_FUNCTION(tvm->registers[rFunction]);
-            f->parameters[argCount].registerIndex = rArg;
-
+        case OP_SET_FROM_STACK:{
+            ido_uint32 rIndex = DEC_CONSTANT_INDEX(i);
+            Value rB;
+            GET_REGISTER_VALUE(rB, tvm->registers[DEC_REGISTER_DEST(i)]);
+            tvm->stack[rIndex] = rB;
+            ibreak;
+        }
+        case OP_PUSH:{
+            Value rB;
+            GET_REGISTER_VALUE(rB, tvm->registers[DEC_GET_GLOBAL_CINDEX(i)]);
+            push(tvm,rB);
+            ibreak;
+        }
+        case OP_GET_FROM_STACK:{
+            ido_uint32 rResult = DEC_REGISTER_DEST(i);
+            ido_uint32 constantIndex = DEC_CONSTANT_INDEX(i);
+            tvm->registers[rResult] = tvm->stack[constantIndex];
             ibreak;
         }
         case OP_CALL:{
             uint8_t argCount = DEC_CALL_ARGUMENT_COUNT(i);
             ido_uint32 rFunction = DEC_CALL_FUNCTION(i);
-
+            
             ObjFunction* f = AS_FUNCTION(tvm->registers[rFunction]);
 
             if(!callValue(tvm, tvm->registers[rFunction], argCount)){
@@ -386,7 +394,6 @@ static InterpretResult runVM(TVM* tvm){
             if(tvm->frameCount == 0){
                 return INTERPRET_OK;
             }
-            tvm->stackTop = frame->slots;
             //push
             frame = &tvm->frames[tvm->frameCount - 1];
             ibreak;

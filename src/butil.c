@@ -11,12 +11,15 @@ void printBytecodeSimple(Program* prog){
     bytecodeInfo opnames[] = { // expand these later
         // [OP_LOAD]    = {"OP_LOAD"},
         [OP_CONSTANT]    = {"OP_CONSTANT"},
+        [OP_GET_FROM_STACK ] = {"OP_GET_FROM_STACK "},
+        [OP_SET_FROM_STACK ] = {"OP_SET_FROM_STACK "},
         [OP_PRINT]    = {"OP_PRINT"},
         [OP_DEFINE_GLOBAL]    = {"OP_DEFINE_GLOBAL"},
         [OP_GET_GLOBAL]    = {"OP_GET_GLOBAL"},
         [OP_SET_GLOBAL]    = {"OP_SET_GLOBAL"},
         [OP_GET_LOCAL]    = {"OP_GET_LOCAL"},
         [OP_SET_LOCAL]    = {"OP_SET_LOCAL"},
+        [OP_PUSH]    = {"OP_PUSH"},
         [OP_ADD]    = {"OP_ADD"},
         [OP_SUB]    = {"OP_SUB"},
         [OP_MUL]    = {"OP_MUL"},
@@ -38,7 +41,6 @@ void printBytecodeSimple(Program* prog){
         [OP_RETURN]    = {"OP_RETURN"},
         [OP_CALL]    = {"OP_CALL"},
         [OP_HLT]    = {"OP_HLT"},
-        [OP_LOAD_ARG]    = {"OP_LOAD_ARG"},
     };
 
     Instruction i;

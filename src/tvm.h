@@ -27,7 +27,6 @@ typedef enum {
 typedef struct {
   ObjFunction* function;
   Instruction* pc;
-  Value* slots; // Points into the tvms value stack at the first slot that this function can use
 } CallFrame;
 
 typedef struct{

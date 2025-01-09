@@ -17,6 +17,10 @@ typedef enum {
     OP_GET_LOCAL,
     OP_SET_LOCAL,
 
+    OP_GET_FROM_STACK,
+    OP_SET_FROM_STACK,
+    OP_PUSH,
+
     OP_ADD,
     OP_SUB,
     OP_MUL,
@@ -46,8 +50,6 @@ typedef enum {
 
     OP_RETURN,
     OP_HLT, // Halts the vm
-    OP_LOAD_ARG,
-
 } Opcode;
 
 #if IS32INT
@@ -96,6 +98,11 @@ typedef enum {
 #define ENC_GET_LOCAL(cIndex, r)       (OP_GET_LOCAL << 26)  | (r << 18) | (cIndex & 0x1FFFF)
 #define ENC_SET_LOCAL(rReadFrom, rIndex)            (OP_SET_LOCAL << 26)  | (rReadFrom << 18) | (rIndex & 0x1FFFF)
 
+#define ENC_GET_STACK_PARAM(cIndex, resultR) (OP_GET_FROM_STACK << 26)  | (resultR << 18) | (cIndex & 0x1FFFF)
+#define ENC_PUSH(r) (OP_PUSH << 26)  | (r & 0x03FFFFFF)
+
+#define ENC_SET_STACK_PARAM(rReadFrom, rIndex) (OP_SET_FROM_STACK << 26) | (rReadFrom << 18) | (rIndex & 0x1FFFF)
+
 #define ENC_JUMP() (OP_JUMP << 26)
 #define ENC_JUMP_IF_FALSE(rReadFrom) (OP_JUMP_IF_FALSE << 26) | (rReadFrom << 18)
 #define GET_JUMP_OFFSET(i) (i & 0x3FFFF)
@@ -105,11 +112,6 @@ typedef enum {
 #define ENC_CALL(argCount, rFunction) (OP_CALL << 26) | (argCount << 18 ) |  (rFunction & 0x1FFFF)
 #define DEC_CALL_ARGUMENT_COUNT(instruction)    ((i >> 18) & 0xFF)
 #define DEC_CALL_FUNCTION(instruction)     ((instruction) & 0x1FFFF)
-
-#define ENC_LOAD_ARGUMENT(rFunction, rArgument, argCount) (OP_LOAD_ARG << 26) | ((rArgument & 0xFF) << 18) | ((rFunction & 0xFF) << 10) | (argCount)
-#define DEC_CALL_ARGUMENT(i)    ((i >> 18) & 0xFF)
-#define DEC_FUNCTION(i)           ((i >> 10) & 0xFF)
-#define DEC_ARG_COUNT(i)           ((i & 0x1FF))
 
 #define ENC_PRINT(rIndex)            (OP_PRINT << 26) | (rIndex & 0x03FFFFFF)
 #define ENC_RETURN                   (OP_RETURN << 26) 

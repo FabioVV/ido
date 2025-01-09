@@ -83,7 +83,7 @@ void freeR(Compiler* c, Parser* p, ido_uint32 r){
         return;
     }
 
-    if(!IS_REGISTER_FREE(r) || !c->tvm->allocatedRegisters[r]){
+    if(!IS_REGISTER_FREE(r)){
         fprintf(stderr, "attempted to free unallocated or invalid register R%d on line %i\n", r, p->previous.line);
         exit(1);
     }
@@ -181,7 +181,8 @@ static void inline emitReturn(Compiler* c, Parser* p){
     ido_uint32 r = ralloc(c, p);
     writeToProgram(&c->function->program, ENC_NIL(r), p->previous.line);
     writeToProgram(&c->function->program, ENC_RETURN, p->previous.line);
-    rfree(c, p, r);
+    rfree(c, p , getLastAllocatedRegister(c));
+
 }
 
 static ObjFunction* endCompilation(Compiler* c, Parser* p){
@@ -245,7 +246,6 @@ static ido_uint32 emitConstant(Parser *p, Compiler* c, Value v){
     ido_uint32 constantIndex = createConstant(p, c, v);
 
     ido_uint32 r = ralloc(c, p);
-    
     writeToProgram(&c->function->program, ENC_CONSTANT(constantIndex, r), p->previous.line);
     return constantIndex;
 }
@@ -346,7 +346,7 @@ static int resolveParams(Parser *p, Compiler* c, Token* name){
     for(int i = c->function->parametersCount - 1; i >= 0; i--){
         Parameter* param = &c->function->parameters[i];
         if(identifiersEqual(name, &param->name)){
-            return param->registerIndex;
+            return i;
         }
     }
     return -1;
@@ -391,18 +391,20 @@ static ido_uint32 parseVariable(Parser *p, Scanner *sc, Compiler* c, const char*
     return idc;
 }
 
-static void markInitialized(Parser *p, Compiler* c){
+static void markInitialized(Parser *p, Compiler* c, bool isParam){
     if(c->scopeDepth == 0) return;
     c->locals[c->localCount - 1].depth = c->scopeDepth;
     if(c->type == TYPE_SCRIPT){
         writeToProgram(&c->function->program, ENC_SET_LOCAL(getLastAllocatedRegister(c), c->locals[c->localCount - 1].registerIndex), p->previous.line);
+    } else if (c->type == TYPE_FUNCTION && !isParam) {
+        writeToProgram(&c->function->program, ENC_SET_STACK_PARAM(getLastAllocatedRegister(c), (c->function->parametersCount - 1)), p->previous.line);
     }
 
 }
 
-static void defineVariable(Parser *p, Compiler* c, ido_uint32 global){
+static void defineVariable(Parser *p, Compiler* c, ido_uint32 global, bool isParam){
     if(c->scopeDepth > 0){
-        markInitialized(p, c);
+        markInitialized(p, c, isParam);
         return;
     }
     rfree(c, p, getLastAllocatedRegister(c));
@@ -446,23 +448,28 @@ static void string(Parser *p, Scanner *sc, Compiler* c, bool canAssign){ // TODO
 
 static void namedVariable(Parser *p, Scanner *sc, Compiler* c, Token name, bool canAssign){
     ido_uint32 arg = resolveLocal(p, c, &name);
+    ido_uint32 argP = resolveParams(p, c, &name);
     // I know this routine sucks, i will refactor it later. (Ah yes, 'refactor it later'. Sure. Obvioulsly that will happen.)
 
-    if(c->type == TYPE_FUNCTION){
-        ido_uint32 argP = resolveParams(p, c, &name);
-        ido_uint32 resultR = ralloc(c, p);
-        writeToProgram(&c->function->program, ENC_GET_LOCAL(argP, resultR), p->previous.line);
-        return;
-    } //CHECK THISSSSS
-
-    if(arg != -1){
+    if(arg != -1 || argP != -1){
         if(canAssign && match(p, sc, c, T_EQUAL)){
             rfree(c, p, getLastAllocatedRegister(c));
             expression(p, sc, c);
+
+            if(c->type == TYPE_FUNCTION){
+                writeToProgram(&c->function->program, ENC_SET_STACK_PARAM(getLastAllocatedRegister(c), argP), p->previous.line);
+                return;
+            }
+
             writeToProgram(&c->function->program, ENC_SET_LOCAL(getLastAllocatedRegister(c), arg), p->previous.line);
         } else {
-
             ido_uint32 resultR = ralloc(c, p);
+
+            if(c->type == TYPE_FUNCTION){
+                writeToProgram(&c->function->program, ENC_GET_STACK_PARAM(argP, resultR), p->previous.line);
+                return;
+            }
+
             writeToProgram(&c->function->program, ENC_GET_LOCAL(arg, resultR), p->previous.line);
         }
     } else {
@@ -519,6 +526,7 @@ static void block(Parser *p, Scanner *sc, Compiler* c){
 static void function(Parser *p, Scanner *sc, Compiler* c, FunctionType type){
     Compiler* cf = initCompiler(c->tvm, p, type);
     beginScope(cf);
+    rfree(c, p, getLastAllocatedRegister(c));
 
     consume(p, sc, cf, T_LEFT_PAREN, "expect '(' after function name");
     if(!check(p, sc, T_RIGHT_PAREN)){
@@ -528,12 +536,13 @@ static void function(Parser *p, Scanner *sc, Compiler* c, FunctionType type){
                 errorAtCurrent(p, "can't have more than 100 parameters");
             }
             ido_uint32 constant = parseVariable(p, sc, cf, "expect parameter name");
-            defineVariable(p, cf, constant);
+            defineVariable(p, cf, constant, true);
 
         } while (match(p, sc, cf, T_COMMA));
     }
     consume(p, sc, cf, T_RIGHT_PAREN, "expect ')' after parameters");
     consume(p, sc, cf, T_LEFT_BRACE, "expect '{' before function body");
+
     block(p, sc, cf);
 
     endScope(p, cf);
@@ -554,20 +563,21 @@ static void varDeclaration(Parser *p, Scanner *sc, Compiler* c){
     }  else {
         ido_uint32 resultR = ralloc(c, p);
         writeToProgram(&c->function->program, ENC_NIL(resultR), p->previous.line); // else it does not have a initial value, allocate a nil instead
+        
     }
 
     consume(p, sc, c, T_SEMICOLON, "expect ';' after var declaration");
-    defineVariable(p, c, global);
+    defineVariable(p, c, global, false);
 
 }
 
 static void fnDeclaration(Parser *p, Scanner *sc, Compiler* c){
     ido_uint32 global = parseVariable(p, sc, c, "expect function name"); // Get the constant index of the string name
-    rfree(c, p, getLastAllocatedRegister(c));
 
-    markInitialized(p, c);
+    markInitialized(p, c, false);
     function(p, sc, c, TYPE_FUNCTION);
-    defineVariable(p, c, global);
+    defineVariable(p, c, global, false);
+    
 }
 
 static void expressionStatement(Parser *p, Scanner *sc, Compiler* c){
@@ -665,6 +675,7 @@ static void forStatement(Parser *p, Scanner *sc, Compiler* c){
 static void printStatement(Parser *p, Scanner *sc, Compiler* c){
     expression(p, sc, c);
     consume(p, sc, c, T_SEMICOLON, "expect ';' after value");
+
     writeToProgram(&c->function->program, ENC_PRINT(getLastAllocatedRegister(c)), p->previous.line);
     rfree(c, p, getLastAllocatedRegister(c));
 }
@@ -673,7 +684,6 @@ static void returnStatement(Parser *p, Scanner *sc, Compiler* c){
     if(c->type == TYPE_SCRIPT){
         error(p, "can't return from top level code");
     }
-
     if(match(p, sc, c, T_SEMICOLON)){
         emitReturn(c, p);
     } else {
@@ -681,6 +691,7 @@ static void returnStatement(Parser *p, Scanner *sc, Compiler* c){
         consume(p, sc, c, T_SEMICOLON, "expect ';' after return value");
         writeToProgram(&c->function->program, ENC_RETURN, p->previous.line);
     }
+
 }
 
 static void sync(Parser *p, Scanner *sc, Compiler* c){
@@ -807,8 +818,8 @@ static uint8_t argumentList(Parser *p, Scanner *sc, Compiler* c, ido_uint32 rFun
     if(!check(p, sc, T_RIGHT_PAREN)){
         do {
             expression(p, sc, c);
-            writeToProgram(&c->function->program, ENC_LOAD_ARGUMENT(rFunction, argCount, argCount), p->previous.line);
-            // rfree(c, p, getLastAllocatedRegister(c));
+            writeToProgram(&c->function->program, ENC_PUSH(getLastAllocatedRegister(c)), p->previous.line);
+            rfree(c, p, getLastAllocatedRegister(c));
 
             if(argCount == 100){
                 errorAtCurrent(p, "can't have more than 100 parameters");
@@ -822,9 +833,12 @@ static uint8_t argumentList(Parser *p, Scanner *sc, Compiler* c, ido_uint32 rFun
 
 static void call(Parser *p, Scanner *sc, Compiler* c, bool canAssign){
     ido_uint32 rFunction = getLastAllocatedRegister(c); // Register index where the function object is
+    
     uint8_t argCount = argumentList(p, sc, c, rFunction);
+    rfree(c, p, rFunction);
 
     writeToProgram(&c->function->program, ENC_CALL(argCount, rFunction), p->previous.line);
+
 }
 
 static void literal(Parser *p, Scanner *sc, Compiler* c, bool canAssign){
@@ -900,6 +914,6 @@ ObjFunction* compile( Scanner* sc, Parser* p, TVM* tvm){
 
     printBytecodeSimple(&f->program);
     freeCompiler(c);
-
+    
     return p->hadError ? NULL : f;
 }

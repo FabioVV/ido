@@ -1,9 +1,8 @@
-
-
 fn sum(a, b){
-    print a;
-    print b;
+    var result = a;
+    var test = b;
+
+    print result + test;
 }
 
-
-sum(1, 2);
+sum(1, 6);
