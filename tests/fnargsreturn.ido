@@ -2,9 +2,23 @@ fn sum(a, b){
     var result = a;
     var test = b;
 
-    return result;
+    return a + b - 4;
 }
 
-var result = sum(1, 6);
+fn sumNIL(a, b){
+    var result = a;
+    var test = b;
 
-print result;
+    return;
+}
+
+fn sumNILtwo(a, b){
+    var result = a;
+    var test = b;
+}
+
+print sum(1, 6);
+print sumNIL(1, 6); // This needs to print nil
+
+var niltest = sumNILtwo(0, -50);
+print niltest; // This also needs to print nil

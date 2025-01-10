@@ -156,6 +156,24 @@ static InterpretResult runVM(TVM* tvm){
                 default: target = NIL_VAL();\
             }\
         } while (false)
+
+    #define GET_VALUE(target, source)\
+        do {\
+            switch (GET_TYPE(source)) {\
+                case VAL_INUMBER:\
+                    target = GET_CONSTANT(AS_INUMBER(source));\
+                    break;\
+                case VAL_NIL:\
+                    target = NIL_VAL();\
+                    break;\
+                case VAL_OBJ:\
+                case VAL_DNUMBER:\
+                case VAL_BOOL:\
+                    target = source;\
+                    break;\
+                default: target = NIL_VAL();\
+            }\
+        } while (false)
     
     #define BINARY_OP(vType, op) \
         do { \
@@ -398,6 +416,16 @@ static InterpretResult runVM(TVM* tvm){
             frame = &tvm->frames[tvm->frameCount - 1];
             ibreak;
         }
+        case OP_LOAD_RETURN:{
+            ido_uint32 rIndex = DEC_GET_GLOBAL_CINDEX(i);
+
+            Value retrn = pop(tvm);
+            Value v;
+            GET_VALUE(v, retrn);
+            
+            tvm->registers[rIndex] = v;
+            ibreak;
+        }
         case OP_HLT:
             printf("HALTING...\n");
             return INTERPRET_HALT;
@@ -413,6 +441,7 @@ static InterpretResult runVM(TVM* tvm){
     #undef READ_STRING
     #undef BINARY_OP
     #undef GET_REGISTER_VALUE
+    #undef GET_VALUE
 }
 
 InterpretResult interpret(TVM* tvm, Scanner* sc, Parser* p){

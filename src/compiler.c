@@ -180,9 +180,9 @@ static void errorAtCurrent(Parser* p, const char* message){
 static void inline emitReturn(Compiler* c, Parser* p){
     ido_uint32 r = ralloc(c, p);
     writeToProgram(&c->function->program, ENC_NIL(r), p->previous.line);
+    writeToProgram(&c->function->program, ENC_PUSH(r), p->previous.line);
     writeToProgram(&c->function->program, ENC_RETURN, p->previous.line);
     rfree(c, p , getLastAllocatedRegister(c));
-
 }
 
 static ObjFunction* endCompilation(Compiler* c, Parser* p){
@@ -684,14 +684,16 @@ static void returnStatement(Parser *p, Scanner *sc, Compiler* c){
     if(c->type == TYPE_SCRIPT){
         error(p, "can't return from top level code");
     }
+
     if(match(p, sc, c, T_SEMICOLON)){
         emitReturn(c, p);
     } else {
         expression(p, sc, c);
         consume(p, sc, c, T_SEMICOLON, "expect ';' after return value");
+        writeToProgram(&c->function->program, ENC_PUSH(getLastAllocatedRegister(c)), p->previous.line);
         writeToProgram(&c->function->program, ENC_RETURN, p->previous.line);
+        rfree(c, p, getLastAllocatedRegister(c));
     }
-
 }
 
 static void sync(Parser *p, Scanner *sc, Compiler* c){
@@ -839,6 +841,9 @@ static void call(Parser *p, Scanner *sc, Compiler* c, bool canAssign){
 
     writeToProgram(&c->function->program, ENC_CALL(argCount, rFunction), p->previous.line);
 
+    ido_uint32 returnResult = ralloc(c, p);
+    writeToProgram(&c->function->program, ENC_LOADRETURN(returnResult), p->previous.line);
+    rfree(c, p, returnResult);
 }
 
 static void literal(Parser *p, Scanner *sc, Compiler* c, bool canAssign){
