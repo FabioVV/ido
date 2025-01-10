@@ -368,7 +368,6 @@ static void addLocal(Parser *p, Compiler* c, Token name){
     } else if(c->type == TYPE_FUNCTION) {
         Parameter* param = &c->function->parameters[c->function->parametersCount++];
         param->name = name;
-        param->registerIndex = -1;
     }
 
 
@@ -838,6 +837,7 @@ static void call(Parser *p, Scanner *sc, Compiler* c, bool canAssign){
     
     uint8_t argCount = argumentList(p, sc, c, rFunction);
     rfree(c, p, rFunction);
+
 
     writeToProgram(&c->function->program, ENC_CALL(argCount, rFunction), p->previous.line);
 

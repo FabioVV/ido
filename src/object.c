@@ -96,6 +96,12 @@ ObjFunction* newFunction(TVM* tvm){
     return f;
 }
 
+ObjBuiltin* newBuiltin(TVM* tvm, Builtin function){
+    ObjBuiltin* b = ALLOCATE_OBJ(tvm, ObjBuiltin, OBJ_BUILTIN);
+    b->function = function;
+    return b;
+}
+
 static ObjString* allocateString(TVM* tvm, char* chars, int length, uint32_t hash){
     ObjString* string = ALLOCATE_OBJ(tvm, ObjString, OBJ_STRING);
     string->chars = chars;
@@ -146,6 +152,9 @@ void printObject(Value v){
         break;
     case OBJ_FUNCTION:
         printFunction(AS_FUNCTION(v));
+        break;
+    case OBJ_BUILTIN:
+        printf("<IDO builtin fn>");
         break;
     default: return;
     }

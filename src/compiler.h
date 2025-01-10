@@ -35,17 +35,17 @@ typedef struct {
     uint8_t registerIndex;
 } Local;
 
-typedef struct {
-    ido_uint32 start;
-    ido_uint32 end;
-    uint8_t registerIndex;
-} Intervals;
+// typedef struct {
+//     ido_uint32 start;
+//     ido_uint32 end;
+//     uint8_t registerIndex;
+// } Intervals;
 
-typedef struct {
-    int capacity;
-    int count;
-    Intervals* intervals;
-} LiveInterval;
+// typedef struct {
+//     int capacity;
+//     int count;
+//     Intervals* intervals;
+// } LiveInterval;
 
 typedef struct {
     TVM* tvm;

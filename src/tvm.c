@@ -1,14 +1,39 @@
 // The tania VM
-#include "tvm.h"
 #include <stdint.h>
 #include <stdarg.h>
 #include <string.h>
+#include <time.h>
+#include "tvm.h"
 #include "common.h"
 #include "compiler.h"
 #include "object.h"
 #include "memory.h"
 #include "value.h"
 
+static void push(TVM* tvm, Value value) {
+    *tvm->stackTop = value;
+    tvm->stackTop++;
+}
+
+static Value pop(TVM* tvm) {
+    tvm->stackTop--;
+    return *tvm->stackTop;
+}
+
+// Builtin
+static Value clockBuiltin(int argCount, Value* args){
+    return DNUMBER_VAL((double)clock() / CLOCKS_PER_SEC);
+}
+// Builtin
+
+static void defineBuiltin(TVM* tvm, const char* name, Builtin fn){
+    push(tvm, OBJ_VAL(copyString(tvm, name, (int)strlen(name))));
+    push(tvm, OBJ_VAL(newBuiltin(tvm, fn)));
+    tableSet(&tvm->globals, AS_STRING(tvm->stack[0]), tvm->stack[1]);
+    pop(tvm);
+    pop(tvm);
+
+}
 
 static void resetStack(TVM* tvm){
     tvm->stackTop = tvm->stack;
@@ -36,17 +61,9 @@ TVM* initVM(){
     initTable(&tvm->strings);
     initTable(&tvm->globals);
 
+    defineBuiltin(tvm, "clock", clockBuiltin);
+
     return tvm;
-}
-
-static void push(TVM* tvm, Value value) {
-    *tvm->stackTop = value;
-    tvm->stackTop++;
-}
-
-static Value pop(TVM* tvm) {
-    tvm->stackTop--;
-    return *tvm->stackTop;
 }
 
 static Value peek(TVM* tvm, int distance) {
@@ -62,17 +79,17 @@ void freeVM(TVM* tvm){
 static void runtimeErr(TVM* tvm, const char* format, ...){
     fprintf(stderr, "\n");
 
-    for(int i = tvm->frameCount - 1; i >=0; i--){
-        CallFrame* frame = &tvm->frames[i];
-        ObjFunction* f = frame->function;
-        size_t inst = frame->pc - frame->function->program.code - 1;
-        fprintf(stderr, "[line %d] in ", f->program.lines[inst]);
-        if(f->name == NULL){
-            fprintf(stderr, "script\n");
-        } else {
-            fprintf(stderr, "%s()\n", f->name->chars);
-        }
-    }
+    // for(int i = tvm->frameCount - 1; i >=0; i--){
+    //     CallFrame* frame = &tvm->frames[i];
+    //     ObjFunction* f = frame->function;
+    //     size_t inst = frame->pc - frame->function->program.code - 1;
+    //     fprintf(stderr, "[line %d] in ", f->program.lines[inst]);
+    //     if(f->name == NULL){
+    //         fprintf(stderr, "script\n");
+    //     } else {
+    //         fprintf(stderr, "%s()\n", f->name->chars);
+    //     }
+    // }
 
     va_list args;
     va_start(args, format);
@@ -125,6 +142,14 @@ static bool callValue(TVM* tvm, Value calee, uint8_t argCount){
         switch (OBJ_TYPE(calee))
         {
         case OBJ_FUNCTION: return  call(tvm, AS_FUNCTION(calee), argCount);
+        case OBJ_BUILTIN:{
+            Builtin fn = AS_BUILTIN(calee);
+            Value result = fn(argCount, tvm->stackTop - argCount);
+            tvm->stackTop -= argCount - 1;
+            push(tvm, result);
+            return true; 
+        }
+
         default: break;
         }
     }   
@@ -385,13 +410,15 @@ static InterpretResult runVM(TVM* tvm){
         case OP_PUSH:{
             Value rB;
             GET_REGISTER_VALUE(rB, tvm->registers[DEC_GET_GLOBAL_CINDEX(i)]);
-            push(tvm,rB);
+            push(tvm, rB);
             ibreak;
         }
         case OP_GET_FROM_STACK:{
             ido_uint32 rResult = DEC_REGISTER_DEST(i);
             ido_uint32 constantIndex = DEC_CONSTANT_INDEX(i);
-            tvm->registers[rResult] = tvm->stack[constantIndex];
+            Value rB;
+            GET_VALUE(rB, tvm->stack[constantIndex]);
+            tvm->registers[rResult] = rB;
             ibreak;
         }
         case OP_CALL:{
@@ -416,7 +443,7 @@ static InterpretResult runVM(TVM* tvm){
             frame = &tvm->frames[tvm->frameCount - 1];
             ibreak;
         }
-        case OP_LOAD_RETURN:{
+        case OP_LOAD_RETURN:{ // handle this inside of the OP_RETURN, its better and we eliminate a opcode
             ido_uint32 rIndex = DEC_GET_GLOBAL_CINDEX(i);
 
             Value retrn = pop(tvm);

@@ -1,0 +1,12 @@
+fn p(){
+    return 2;
+}
+
+fn factorial(n) {
+    if (n <= 1) {
+        return 1;  
+    } else {
+        return n * p();
+    }
+}
+print factorial(5);
