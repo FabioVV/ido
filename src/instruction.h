@@ -49,6 +49,7 @@ typedef enum {
     OP_CALL,
 
     OP_RETURN,
+    OP_RETURNV,
     OP_LOAD_RETURN,
     OP_HLT, // Halts the vm
 } Opcode;
@@ -116,6 +117,7 @@ typedef enum {
 
 #define ENC_PRINT(rIndex)            (OP_PRINT << 26) | (rIndex & 0x03FFFFFF)
 #define ENC_RETURN                   (OP_RETURN << 26) 
+#define ENC_RETURNV(rIndex)                   (OP_RETURNV << 26) | (rIndex & 0x03FFFFFF)
 
 #define ENC_LOADRETURN(rIndex) (OP_LOAD_RETURN << 26) | (rIndex & 0x03FFFFFF)
 

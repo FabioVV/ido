@@ -13,7 +13,7 @@ static void repl(){
     sys_info_print_repl();
     
     for(;;){
-        printf("IDO[%03d]> ", lc);
+        printf("IDO %03d|> ", lc);
 
         if(!fgets(line, sizeof(line), stdin)){
             printf("\n");

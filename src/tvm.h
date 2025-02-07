@@ -13,8 +13,8 @@ typedef struct ObjFunction ObjFunction;
 #define IS_REGISTER_VALID(r) ((r) != INVALID_REGISTER)
 #define IS_REGISTER_FREE(r)  ((r) >= 0 && (r) <= REGISTERS_NUM)
 
-#define FRAMES_NUM 4096 
-#define STACK_NUM 4096 
+#define FRAMES_NUM 2024 
+#define STACK_NUM 2048 
 
 typedef enum {
   INTERPRET_OK,

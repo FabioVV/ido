@@ -180,7 +180,7 @@ static void errorAtCurrent(Parser* p, const char* message){
 static void inline emitReturn(Compiler* c, Parser* p){
     ido_uint32 r = ralloc(c, p);
     writeToProgram(&c->function->program, ENC_NIL(r), p->previous.line);
-    writeToProgram(&c->function->program, ENC_PUSH(r), p->previous.line);
+    // writeToProgram(&c->function->program, ENC_PUSH(r), p->previous.line);
     writeToProgram(&c->function->program, ENC_RETURN, p->previous.line);
     rfree(c, p , getLastAllocatedRegister(c));
 }
@@ -247,6 +247,11 @@ static ido_uint32 emitConstant(Parser *p, Compiler* c, Value v){
 
     ido_uint32 r = ralloc(c, p);
     writeToProgram(&c->function->program, ENC_CONSTANT(constantIndex, r), p->previous.line);
+    return constantIndex;
+}
+
+static ido_uint32 emitConstantGlobal(Parser *p, Compiler* c, Value v){
+    ido_uint32 constantIndex = createConstant(p, c, v);
     return constantIndex;
 }
 
@@ -324,6 +329,11 @@ static ido_uint32 identifierConstant(Parser *p, Compiler* c, Token* name){
     return a;
 }
 
+static ido_uint32 identifierConstantGlobal(Parser *p, Compiler* c, Token* name){
+    ido_uint32 a = emitConstantGlobal(p, c, OBJ_VAL(copyString(c->tvm, name->start, name->length)));
+    return a;
+}
+
 static bool identifiersEqual(Token* a, Token* b){
     if(a->length != b->length) return false;
     return memcmp(a->start, b->start, a->length) == 0;
@@ -368,6 +378,7 @@ static void addLocal(Parser *p, Compiler* c, Token name){
     } else if(c->type == TYPE_FUNCTION) {
         Parameter* param = &c->function->parameters[c->function->parametersCount++];
         param->name = name;
+        param->registerIndex = -1;
     }
 
 
@@ -472,7 +483,8 @@ static void namedVariable(Parser *p, Scanner *sc, Compiler* c, Token name, bool 
             writeToProgram(&c->function->program, ENC_GET_LOCAL(arg, resultR), p->previous.line);
         }
     } else {
-        ido_uint32 arg = identifierConstant(p, c, &name); // TODO: Check bits of encoding and return indexes fo better handling
+        ido_uint32 arg = identifierConstantGlobal(p, c, &name); // TODO: Check bits of encoding and return indexes fo better handling
+
         if(canAssign && match(p, sc, c, T_EQUAL)){
             rfree(c, p, getLastAllocatedRegister(c));
             expression(p, sc, c);
@@ -480,8 +492,8 @@ static void namedVariable(Parser *p, Scanner *sc, Compiler* c, Token name, bool 
 
         } else {
             rfree(c, p, getLastAllocatedRegister(c));
-            ido_uint32 resultR = ralloc(c, p);
-            writeToProgram(&c->function->program, ENC_GET_GLOBAL(arg, resultR), p->previous.line);
+            ido_uint32 r = ralloc(c, p);
+            writeToProgram(&c->function->program, ENC_GET_GLOBAL(arg, r), p->previous.line);
         }
     }
     
@@ -689,8 +701,7 @@ static void returnStatement(Parser *p, Scanner *sc, Compiler* c){
     } else {
         expression(p, sc, c);
         consume(p, sc, c, T_SEMICOLON, "expect ';' after return value");
-        writeToProgram(&c->function->program, ENC_PUSH(getLastAllocatedRegister(c)), p->previous.line);
-        writeToProgram(&c->function->program, ENC_RETURN, p->previous.line);
+        writeToProgram(&c->function->program, ENC_RETURNV(getLastAllocatedRegister(c)), p->previous.line);
         rfree(c, p, getLastAllocatedRegister(c));
     }
 }
@@ -838,12 +849,10 @@ static void call(Parser *p, Scanner *sc, Compiler* c, bool canAssign){
     uint8_t argCount = argumentList(p, sc, c, rFunction);
     rfree(c, p, rFunction);
 
-
     writeToProgram(&c->function->program, ENC_CALL(argCount, rFunction), p->previous.line);
 
-    ido_uint32 returnResult = ralloc(c, p);
-    writeToProgram(&c->function->program, ENC_LOADRETURN(returnResult), p->previous.line);
-    rfree(c, p, returnResult);
+    ido_uint32 r = ralloc(c, p);
+    writeToProgram(&c->function->program, ENC_LOADRETURN(r), p->previous.line);
 }
 
 static void literal(Parser *p, Scanner *sc, Compiler* c, bool canAssign){
