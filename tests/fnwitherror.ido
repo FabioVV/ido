@@ -1,0 +1,5 @@
+fn sum(a, b){
+    print c;
+}
+
+print sum(1, 0);

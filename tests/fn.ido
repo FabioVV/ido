@@ -1,0 +1,8 @@
+fn thetruth(){
+    print "Christ is king.";
+}
+print "thetruth";
+
+thetruth();
+
+print "after fn call";

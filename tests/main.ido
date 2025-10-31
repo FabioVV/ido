@@ -1,0 +1,35 @@
+// Mashup of almost anything i can think of
+
+print "Hello, World!";
+print "Christ is King!";
+
+var niltest;
+var boolean = true;
+print boolean;
+
+if(boolean){
+    print 10;
+} else {
+    print 1;
+}
+
+var a = "God is ";
+var b = "Good!";
+
+print a + b + "!!!";
+print a;
+print b;
+
+var t = 1;
+
+{
+    var c = 5;
+    print c + 2; // 7
+    t = t + c + 1;
+    var k = "constant";
+    print k + " yes KONSTANT";
+}
+
+print t; // 7
+
+//print c; // should produce an error if uncommented

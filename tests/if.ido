@@ -1,0 +1,29 @@
+var f = true;
+var s = false;
+var c = nil;
+
+var c = 1;
+
+if(f){
+    print "F var is true";
+} else {
+    print "This should not execute";
+}
+
+if(s){
+    print "This should not execute";
+} else {
+    print "S var is false";
+}
+
+print "after ifs";
+print "after" + " ifs";
+
+
+if(true and true){
+    print "This should be printed to the console";
+}
+
+if(true and false){
+    print "This should not be printed to the console";
+}

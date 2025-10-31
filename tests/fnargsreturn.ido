@@ -1,0 +1,6 @@
+fn sum(){
+
+    return 10;
+}
+
+print 2  * sum();

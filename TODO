@@ -1,0 +1,13 @@
+Global vars: instead of a Hash table,
+use something else, as a hash table in all its mighty,
+is still slow when dealing with something like lookups, 
+and since when dealing with variables, there is a lot of lookups, it can
+become really slow.
+    IDEA: use an flat array instead. Lookups is a simple as an indexing. Constant time.
+
+Spilling: Need to thing about this later.
+
+Result register: When result registers are allocated, they are never freed, meaning as the program runs,
+the less and less registers the program has available. Need to fix
+
+Local vars: Done.

@@ -1,0 +1,9 @@
+fn bruh(a){
+    print a;
+}
+
+fn factorial(c) {
+    bruh(c - 1);
+}
+
+factorial(5);
